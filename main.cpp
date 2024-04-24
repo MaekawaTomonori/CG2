@@ -52,7 +52,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     #ifdef _DEBUG
     ID3D12Debug1* debugController = nullptr;
-    if(SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))){
+    if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))){
         debugController->EnableDebugLayer();
 
         debugController->SetEnableGPUBasedValidation(TRUE);
@@ -105,9 +105,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 
 
-#ifdef _DEBUG
+    #ifdef _DEBUG
     ID3D12InfoQueue* infoQueue = nullptr;
-    if(SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&infoQueue)))){
+    if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&infoQueue)))){
         infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
         infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
         infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
@@ -117,7 +117,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         };
 
         D3D12_MESSAGE_SEVERITY severities[] = {D3D12_MESSAGE_SEVERITY_INFO};
-        D3D12_INFO_QUEUE_FILTER filter{};
+        D3D12_INFO_QUEUE_FILTER filter {};
         filter.DenyList.NumIDs = _countof(denyIds);
         filter.DenyList.pIDList = denyIds;
         filter.DenyList.NumSeverities = _countof(severities);
@@ -128,7 +128,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         infoQueue->Release();
     }
 
-#endif
+    #endif
 
 
     //Create CommandQueue
@@ -198,6 +198,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     HANDLE fenceEvent = CreateEvent(nullptr, false, false, nullptr);
     assert(fenceEvent != nullptr);
+
+    //init DxcCompiler
+    IDxcUtils* dxcUtils = nullptr;
+    IDxcCompiler3* dxcCompiler = nullptr;
+    hResult = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils));
+    assert(SUCCEEDED(hResult));
+    hResult = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&dxcCompiler));
+    assert(SUCCEEDED(hResult));
+
+    //support include
+    IDxcIncludeHandler* includeHandler = nullptr;
+    hResult = dxcUtils->CreateDefaultIncludeHandler(&includeHandler);
+    assert(SUCCEEDED(hResult));
 
     MSG msg {};
     while (msg.message != WM_QUIT){
