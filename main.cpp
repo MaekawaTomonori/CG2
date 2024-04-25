@@ -1,5 +1,7 @@
 #include <format>
 
+#include "Shader.h"
+
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg){
         case WM_DESTROY:
@@ -218,11 +220,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     D3D12_ROOT_SIGNATURE_DESC descriptionRootSignature {};
     descriptionRootSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
+    //RootParameter
+    D3D12_ROOT_PARAMETER rootParameters[1] = { };
+    rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    rootParameters[0].Descriptor.ShaderRegister = 0;
+    descriptionRootSignature.pParameters = rootParameters;
+    descriptionRootSignature.NumParameters = _countof(rootParameters);
+
     //serialize
     ID3DBlob* signatureBlob = nullptr;
     ID3DBlob* errorBlob = nullptr;
     hResult = D3D12SerializeRootSignature(&descriptionRootSignature, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob, &errorBlob);
-    if(FAILED(hResult)){
+    if (FAILED(hResult)){
         System::Debug::Log(reinterpret_cast<char*>(errorBlob->GetBufferPointer()));
         assert(false);
     }
@@ -278,13 +288,55 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     hResult = device->CreateGraphicsPipelineState(&graphicsPipelineStateDesc, IID_PPV_ARGS(&graphicsPipelineState));
     assert(SUCCEEDED(hResult));
 
+    ///create vertex resource
+    ID3D12Resource* vertexResource = Shader::CreateBufferResource(device, sizeof(Vector4) * 3);
+
+    //リソースにデータを書き込む
+    Vector4* vertexData = nullptr;
+    vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
+    vertexData[0] = {-0.5f, -0.5f, 0, 1};
+    vertexData[1] = {0, 0.5f, 0, 1};
+    vertexData[2] = {0.5f, -0.5f, 0, 1};
+
+    ID3D12Resource* materialResource = Shader::CreateBufferResource(device, sizeof(Vector4) * 3);
+    Vector4* materialData = nullptr;
+    materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
+    *materialData = {0.5f, 0.5f, 0, 1};
+
+    System::Debug::Log(System::Debug::ConvertString(std::format(L"[Debug] : VertexResource\n")));
+
+    ////vertex buffer view
+    D3D12_VERTEX_BUFFER_VIEW vertexBufferView {};
+    vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
+    vertexBufferView.SizeInBytes = sizeof(Vector4) * 3;
+    vertexBufferView.StrideInBytes = sizeof(Vector4);
+
+
+    ///Viewport Scissor
+
+    //Viewport
+    D3D12_VIEWPORT viewport {};
+    viewport.Width = CLIENT_WIDTH;
+    viewport.Height = CLIENT_HEIGHT;
+    viewport.TopLeftX = 0;
+    viewport.TopLeftY = 0;
+    viewport.MinDepth = 0;
+    viewport.MaxDepth = 1;
+
+    //scissor
+    D3D12_RECT scissorRect {};
+    scissorRect.left = 0;
+    scissorRect.right = CLIENT_WIDTH;
+    scissorRect.top = 0;
+    scissorRect.bottom = CLIENT_HEIGHT;
+
     MSG msg {};
     while (msg.message != WM_QUIT){
         if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)){
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         } else{
-            //do somethings...//
+            ///do somethings...///
 
             UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
@@ -300,6 +352,22 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             float clearColor[] = {0.25f, 0.1f, 0.5f, 1.0f};
             commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor, 0, nullptr);
 
+            //stack command
+            commandList->RSSetViewports(1, &viewport);
+            commandList->RSSetScissorRects(1, &scissorRect);
+
+            commandList->SetGraphicsRootSignature(rootSignature);
+            commandList->SetPipelineState(graphicsPipelineState);
+            commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+
+            commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+            //setting cbv
+            commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
+
+            commandList->DrawInstanced(3, 1, 0, 0);
+
+            
             barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
             barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 
@@ -316,7 +384,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             ++fenceValue;
             commandQueue->Signal(fence, fenceValue);
 
-            if(fence->GetCompletedValue() < fenceValue){
+            if (fence->GetCompletedValue() < fenceValue){
                 fence->SetEventOnCompletion(fenceValue, fenceEvent);
                 WaitForSingleObject(fenceEvent, INFINITE);
             }
@@ -325,9 +393,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             assert(SUCCEEDED(hResult));
             hResult = commandList->Reset(commandAllocator, nullptr);
             assert(SUCCEEDED(hResult));
-
         }
     }
+
+    materialResource->Release();
+    vertexResource->Release();
+    graphicsPipelineState->Release();
+    signatureBlob->Release();
+    if (errorBlob){
+        errorBlob->Release();
+    }
+    rootSignature->Release();
+    pixelShaderBlob->Release();
+    vertexShaderBlob->Release();
 
     CloseHandle(fenceEvent);
     fence->Release();
@@ -341,13 +419,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     device->Release();
     useAdapter->Release();
     dxgiFactory->Release();
-#ifdef _DEBUG
+    #ifdef _DEBUG
     debugController->Release();
-#endif
+    #endif
     CloseWindow(hwnd_);
-    
+
     IDXGIDebug1* debug;
-    if(SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&debug)))){
+    if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&debug)))){
         debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
         debug->ReportLiveObjects(DXGI_DEBUG_APP, DXGI_DEBUG_RLO_ALL);
         debug->ReportLiveObjects(DXGI_DEBUG_D3D12, DXGI_DEBUG_RLO_ALL);
@@ -356,4 +434,3 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     return 0;
 }
-

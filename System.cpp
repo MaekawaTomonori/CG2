@@ -82,7 +82,7 @@ IDxcBlob* System::CompileShader(const std::wstring& filePath, const wchar_t* pro
     hResult = shaderResult->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr);
     assert(SUCCEEDED(hResult));
 
-    Debug::Log(Debug::ConvertString(std::format(L"Compile Succeed, Path : {}, Profile : {}")));
+    Debug::Log(Debug::ConvertString(std::format(L"Compile Succeed, Path : {}, Profile : {}\n", filePath, profile)));
     shaderSource->Release();
     shaderResult->Release();
 

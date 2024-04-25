@@ -14,3 +14,4 @@
 #pragma comment(lib, "dxcompiler.lib")
 
 #include "System.h"
+#include "Vector4.h"
