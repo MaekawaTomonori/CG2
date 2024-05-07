@@ -2,6 +2,7 @@
 #include <Windows.h>
 #include <cstdint>
 #include <string>
+#include <format>
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <dxgidebug.h>
@@ -14,4 +15,10 @@
 #pragma comment(lib, "dxcompiler.lib")
 
 #include "System.h"
+
+#include "Vector3.h"
 #include "Vector4.h"
+
+#include "Matrix.h"
+
+#include "Transform.h"

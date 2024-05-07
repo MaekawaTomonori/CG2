@@ -1,5 +1,6 @@
 #include <format>
 
+#include "MathUtils.h"
 #include "Shader.h"
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -220,11 +221,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     D3D12_ROOT_SIGNATURE_DESC descriptionRootSignature {};
     descriptionRootSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
-    //RootParameter
-    D3D12_ROOT_PARAMETER rootParameters[1] = { };
+    ///RootParameter
+    D3D12_ROOT_PARAMETER rootParameters[2] = { };
+    //pixel shader
     rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
     rootParameters[0].Descriptor.ShaderRegister = 0;
+
+    //vertex shader
+    rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+    rootParameters[1].Descriptor.ShaderRegister = 0;
+
     descriptionRootSignature.pParameters = rootParameters;
     descriptionRootSignature.NumParameters = _countof(rootParameters);
 
@@ -261,10 +269,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
 
     //compile shader
-    IDxcBlob* vertexShaderBlob = System::CompileShader(L"Object3d.VS.hlsl", L"vs_6_0", dxcUtils, dxcCompiler, includeHandler);
+    IDxcBlob* vertexShaderBlob = Shader::CompileShader(L"Object3d.VS.hlsl", L"vs_6_0", dxcUtils, dxcCompiler, includeHandler);
     assert(vertexShaderBlob != nullptr);
 
-    IDxcBlob* pixelShaderBlob = System::CompileShader(L"Object3d.PS.hlsl", L"ps_6_0", dxcUtils, dxcCompiler, includeHandler);
+    IDxcBlob* pixelShaderBlob = Shader::CompileShader(L"Object3d.PS.hlsl", L"ps_6_0", dxcUtils, dxcCompiler, includeHandler);
     assert(pixelShaderBlob != nullptr);
 
     //PSO
@@ -297,13 +305,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     vertexData[0] = {-0.5f, -0.5f, 0, 1};
     vertexData[1] = {0, 0.5f, 0, 1};
     vertexData[2] = {0.5f, -0.5f, 0, 1};
-
+    System::Debug::Log(System::Debug::ConvertString(std::format(L"[Debug] : VertexResource\n")));
+    //MaterialResource
     ID3D12Resource* materialResource = Shader::CreateBufferResource(device, sizeof(Vector4) * 3);
     Vector4* materialData = nullptr;
     materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
     *materialData = {0.5f, 0.5f, 0, 1};
 
-    System::Debug::Log(System::Debug::ConvertString(std::format(L"[Debug] : VertexResource\n")));
+    //WVP
+    ID3D12Resource* wvpResource = Shader::CreateBufferResource(device, sizeof(Matrix4x4));
+    Matrix4x4* wvpData = nullptr;
+    wvpResource->Map(0, nullptr, reinterpret_cast<void**>(&wvpData));
+    *wvpData = MathUtils::Matrix::MakeIdentity();
 
     ////vertex buffer view
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView {};
@@ -330,6 +343,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     scissorRect.top = 0;
     scissorRect.bottom = CLIENT_HEIGHT;
 
+    //Transform
+    Transform transform {{1.f,1.f,1.f}, {0.f,0.f,0.f}, {0.f,0.f,0.f}},
+        cameraTransform {{1,1,1}, {0,0,0}, {0,0,-5}};
+    Matrix4x4 worldMatrix{}, cameraMatrix{}, viewMatrix{}, projectionMatrix{}, worldViewProjectionMatrix{};
+
     MSG msg {};
     while (msg.message != WM_QUIT){
         if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)){
@@ -337,7 +355,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             DispatchMessage(&msg);
         } else{
             ///do somethings...///
+            transform.rotate.y += 0.03f;
+             worldMatrix = MathUtils::Matrix::MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
+            /*cameraMatrix = MathUtils::Matrix::MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
+            viewMatrix = cameraMatrix.Inverse();
+            projectionMatrix = MathUtils::Matrix::MakePerspectiveFovMatrix(0.45f, static_cast<float>(CLIENT_HEIGHT) / static_cast<float>(CLIENT_WIDTH), 0.1f, 100.f);
+            worldViewProjectionMatrix = worldMatrix * (viewMatrix * projectionMatrix);
+            *wvpData = worldViewProjectionMatrix;*/
+            *wvpData = worldMatrix;
 
+            ///back///
             UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
             D3D12_RESOURCE_BARRIER barrier {};
@@ -364,6 +391,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
             //setting cbv
             commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
+            commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
 
             commandList->DrawInstanced(3, 1, 0, 0);
 
@@ -396,6 +424,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         }
     }
 
+    wvpResource->Release();
     materialResource->Release();
     vertexResource->Release();
     graphicsPipelineState->Release();
