@@ -15,10 +15,19 @@
 #pragma comment(lib, "dxcompiler.lib")
 
 #include "System.h"
+#include "TextureManager.h"
 
+#include "Vector2.h"
 #include "Vector3.h"
 #include "Vector4.h"
-
+#include "VertexData.h"
 #include "Matrix.h"
-
 #include "Transform.h"
+
+//module
+#define IMGUI_DEFINE_MATH_OPERATORS
+#include "imgui.h"
+#include "imgui_impl_dx12.h"
+#include "imgui_impl_win32.h"
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
