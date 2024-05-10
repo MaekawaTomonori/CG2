@@ -363,7 +363,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     ID3D12Resource* materialResource = Shader::CreateBufferResource(device, sizeof(Vector4) * 3);
     Vector4* materialData = nullptr;
     materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
-    *materialData = {0.5f, 0.5f, 0, 1};
+    //*materialData = {0.5f, 0.5f, 0, 1};
+    *materialData = {1, 1, 1, 1};
 
     //WVP
     ID3D12Resource* wvpResource = Shader::CreateBufferResource(device, sizeof(Matrix4x4));
@@ -374,8 +375,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     ////vertex buffer view
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView {};
     vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
-    vertexBufferView.SizeInBytes = sizeof(Vector4) * 3;
-    vertexBufferView.StrideInBytes = sizeof(Vector4);
+    vertexBufferView.SizeInBytes = sizeof(VertexData) * 3;
+    vertexBufferView.StrideInBytes = sizeof(VertexData);
 
 
     ///Viewport Scissor
@@ -411,7 +412,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     DirectX::ScratchImage mipImages = TextureManager::LoadTexture("resources/uvChecker.png");
     const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
     ID3D12Resource* textureResource = TextureManager::CreateTextureResource(device, metadata);
-    TextureManager::MakeSRV(metadata, srvDescriptorHeap, device, textureResource);
+    D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU = TextureManager::MakeSRV(metadata, srvDescriptorHeap, device, textureResource);
 
     ///MainLoop
     MSG msg {};
@@ -430,11 +431,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
             transform.rotate.y += 0.03f;
              worldMatrix = MathUtils::Matrix::MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
-            /*cameraMatrix = MathUtils::Matrix::MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
+            cameraMatrix = MathUtils::Matrix::MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
             viewMatrix = cameraMatrix.Inverse();
             projectionMatrix = MathUtils::Matrix::MakePerspectiveFovMatrix(0.45f, static_cast<float>(CLIENT_HEIGHT) / static_cast<float>(CLIENT_WIDTH), 0.1f, 100.f);
             worldViewProjectionMatrix = worldMatrix * (viewMatrix * projectionMatrix);
-            *wvpData = worldViewProjectionMatrix;*/
+            *wvpData = worldViewProjectionMatrix;
             *wvpData = worldMatrix;
 
             ///back/// Render
@@ -472,7 +473,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
 
             //setting srv descriptor table
-            commandList->SetGraphicsRootDescriptorTable(2, srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+            commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 
             commandList->DrawInstanced(3, 1, 0, 0);
 

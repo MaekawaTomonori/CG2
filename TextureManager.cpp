@@ -61,7 +61,7 @@ void TextureManager::UnloadTexture(ID3D12Resource* texture, const DirectX::Scrat
     }
 }
 
-void TextureManager::MakeSRV(const DirectX::TexMetadata& metadata, ID3D12DescriptorHeap* srvDescriptorHeap, ID3D12Device* device, ID3D12Resource* textureResource) {
+D3D12_GPU_DESCRIPTOR_HANDLE TextureManager::MakeSRV(const DirectX::TexMetadata& metadata, ID3D12DescriptorHeap* srvDescriptorHeap, ID3D12Device* device, ID3D12Resource* textureResource) {
     //Setting SRV from metadata
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc {};
     srvDesc.Format = metadata.format;
@@ -75,4 +75,5 @@ void TextureManager::MakeSRV(const DirectX::TexMetadata& metadata, ID3D12Descrip
     textureSrvHandleCPU.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     textureSrvHandleGPU.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     device->CreateShaderResourceView(textureResource, &srvDesc, textureSrvHandleCPU);
+    return textureSrvHandleGPU;
 }
