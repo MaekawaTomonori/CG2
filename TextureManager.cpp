@@ -51,7 +51,7 @@ ID3D12Resource* TextureManager::CreateTextureResource(ID3D12Device* device, cons
     return resource;
 }
 
-void TextureManager::UnloadTexture(ID3D12Resource* texture, const DirectX::ScratchImage& mipImages) {
+void TextureManager::UploadTexture(ID3D12Resource* texture, const DirectX::ScratchImage& mipImages) {
     const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
 
     for(size_t mipLevel = 0; mipLevel < metadata.mipLevels; ++mipLevel){

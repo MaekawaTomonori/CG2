@@ -360,7 +360,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 
 	//MaterialResource
-    ID3D12Resource* materialResource = Shader::CreateBufferResource(device, sizeof(Vector4) * 3);
+    ID3D12Resource* materialResource = Shader::CreateBufferResource(device, sizeof(VertexData));
     Vector4* materialData = nullptr;
     materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
     //*materialData = {0.5f, 0.5f, 0, 1};
@@ -412,6 +412,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     DirectX::ScratchImage mipImages = TextureManager::LoadTexture("resources/uvChecker.png");
     const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
     ID3D12Resource* textureResource = TextureManager::CreateTextureResource(device, metadata);
+    TextureManager::UploadTexture(textureResource, mipImages);
     D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU = TextureManager::MakeSRV(metadata, srvDescriptorHeap, device, textureResource);
 
     ///MainLoop
@@ -518,7 +519,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
 
-    TextureManager::UnloadTexture(textureResource, mipImages);
+    TextureManager::UploadTexture(textureResource, mipImages);
     textureResource->Release();
     wvpResource->Release();
     materialResource->Release();
