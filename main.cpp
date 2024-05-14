@@ -221,6 +221,53 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     hResult = dxcUtils->CreateDefaultIncludeHandler(&includeHandler);
     assert(SUCCEEDED(hResult));
 
+
+    //Sampler
+    D3D12_STATIC_SAMPLER_DESC staticSamplers[1] = { };
+    staticSamplers[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+    staticSamplers[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    staticSamplers[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    staticSamplers[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    staticSamplers[0].ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+    staticSamplers[0].MaxLOD = D3D12_FLOAT32_MAX;
+    staticSamplers[0].ShaderRegister = 0;
+    staticSamplers[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+    //compile shader
+    IDxcBlob* vertexShaderBlob = Shader::CompileShader(L"Object3d.VS.hlsl", L"vs_6_0", dxcUtils, dxcCompiler, includeHandler);
+    assert(vertexShaderBlob != nullptr);
+
+    IDxcBlob* pixelShaderBlob = Shader::CompileShader(L"Object3d.PS.hlsl", L"ps_6_0", dxcUtils, dxcCompiler, includeHandler);
+    assert(pixelShaderBlob != nullptr);
+
+    ///create vertex resource
+    ID3D12Resource* vertexResource = Shader::CreateBufferResource(device, sizeof(VertexData) * (3/*3角形*/ * 2 /*個数*/));
+
+    
+    VertexData* vertexData = nullptr;
+
+    //DepthStencilTextureを作成
+    ID3D12Resource* depthStencilResource = TextureManager::CreateDepthStencilTextureResource(device, CLIENT_WIDTH, CLIENT_HEIGHT);
+
+    //DepthStencilState
+    D3D12_DEPTH_STENCIL_DESC depthStencilDesc {};
+    depthStencilDesc.DepthEnable = true;
+    depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+    depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+
+    //DepthStencilView (DSV用のDescriptorHeapの作成)
+    ID3D12DescriptorHeap* dsvDescriptorHeap = Heap::CreateDescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
+    //DSV setting
+    D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc {};
+    dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+
+    ////vertex buffer view
+    D3D12_VERTEX_BUFFER_VIEW vertexBufferView {};
+    vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
+    vertexBufferView.SizeInBytes = sizeof(VertexData) * (3 /*角形*/ * 2 /*枚*/);
+    vertexBufferView.StrideInBytes = sizeof(VertexData);
+
     ///PipelineStateObject (PSO)
 
     //RootSignature
@@ -256,17 +303,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     descriptionRootSignature.pParameters = rootParameters;
     descriptionRootSignature.NumParameters = _countof(rootParameters);
 
-    //Sampler
-    D3D12_STATIC_SAMPLER_DESC staticSamplers[1] = { };
-    staticSamplers[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-    staticSamplers[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    staticSamplers[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    staticSamplers[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    staticSamplers[0].ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
-    staticSamplers[0].MaxLOD = D3D12_FLOAT32_MAX;
-    staticSamplers[0].ShaderRegister = 0;
-    staticSamplers[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-
+    //set Sampler
     descriptionRootSignature.pStaticSamplers = staticSamplers;
     descriptionRootSignature.NumStaticSamplers = _countof(staticSamplers);
 
@@ -308,14 +345,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
     rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
 
-    //compile shader
-    IDxcBlob* vertexShaderBlob = Shader::CompileShader(L"Object3d.VS.hlsl", L"vs_6_0", dxcUtils, dxcCompiler, includeHandler);
-    assert(vertexShaderBlob != nullptr);
-
-    IDxcBlob* pixelShaderBlob = Shader::CompileShader(L"Object3d.PS.hlsl", L"ps_6_0", dxcUtils, dxcCompiler, includeHandler);
-    assert(pixelShaderBlob != nullptr);
-
-    //PSO
+    //PSO Desc setting
     D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsPipelineStateDesc {};
     graphicsPipelineStateDesc.pRootSignature = rootSignature;
     graphicsPipelineStateDesc.InputLayout = inputLayoutDesc;
@@ -332,17 +362,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     graphicsPipelineStateDesc.SampleDesc.Count = 1;
     graphicsPipelineStateDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 
+    graphicsPipelineStateDesc.DepthStencilState = depthStencilDesc;
+    graphicsPipelineStateDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+
     ID3D12PipelineState* graphicsPipelineState = nullptr;
     hResult = device->CreateGraphicsPipelineState(&graphicsPipelineStateDesc, IID_PPV_ARGS(&graphicsPipelineState));
     assert(SUCCEEDED(hResult));
 
-    ///create vertex resource
-    ID3D12Resource* vertexResource = Shader::CreateBufferResource(device, sizeof(VertexData) * 3);
-
-    //リソースにデータを書き込む
-    VertexData* vertexData = nullptr;
+    //set vertexResource//リソースにデータを書き込む
     vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
 
+    //1枚目
     //LeftBtm
 	vertexData[0].position = {-0.5f, -0.5f, 0, 1};
     vertexData[0].texCoord = {0, 1};
@@ -355,29 +385,23 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     vertexData[2].position = {0.5f, -0.5f, 0, 1};
 	vertexData[2].texCoord = { 1, 1};
 
+    //2枚目
+    //LeftBtm
+    vertexData[3].position = {-0.5f, -0.5f, 0.5f, 1.f};
+    vertexData[3].texCoord = {0,1};
+
+    //Top
+    vertexData[4].position = {0, 0, 0, 1};
+    vertexData[4].texCoord = {0.5f, 0};
+
+    //RightBtm
+    vertexData[5].position = {0.5f, -0.5f, -0.5f, 1};
+    vertexData[5].texCoord = {1, 1};
 
     System::Debug::Log(System::Debug::ConvertString(std::format(L"[Debug] : VertexResource\n")));
 
-
-	//MaterialResource
-    ID3D12Resource* materialResource = Shader::CreateBufferResource(device, sizeof(VertexData));
-    Vector4* materialData = nullptr;
-    materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
-    //*materialData = {0.5f, 0.5f, 0, 1};
-    *materialData = {1, 1, 1, 1};
-
-    //WVP
-    ID3D12Resource* wvpResource = Shader::CreateBufferResource(device, sizeof(Matrix4x4));
-    Matrix4x4* wvpData = nullptr;
-    wvpResource->Map(0, nullptr, reinterpret_cast<void**>(&wvpData));
-    *wvpData = MathUtils::Matrix::MakeIdentity();
-
-    ////vertex buffer view
-    D3D12_VERTEX_BUFFER_VIEW vertexBufferView {};
-    vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
-    vertexBufferView.SizeInBytes = sizeof(VertexData) * 3;
-    vertexBufferView.StrideInBytes = sizeof(VertexData);
-
+    //set DepthStencilState
+    device->CreateDepthStencilView(depthStencilResource, &dsvDesc, dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
     ///Viewport Scissor
 
@@ -397,10 +421,33 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     scissorRect.top = 0;
     scissorRect.bottom = CLIENT_HEIGHT;
 
+    
+    ///EO PSO
+
+	//Vertex MaterialResource
+    ID3D12Resource* materialResource = Shader::CreateBufferResource(device, sizeof(VertexData) * (3/*角形*/ * 2/*枚*/));
+    Vector4* materialData = nullptr;
+    materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
+    //*materialData = {0.5f, 0.5f, 0, 1};
+    *materialData = {1, 1, 1, 1};
+
     //Transform
     Transform transform {{1.f,1.f,1.f}, {0.f,0.f,0.f}, {0.f,0.f,0.f}},
         cameraTransform {{1,1,1}, {0,0,0}, {0,0,-5}};
     Matrix4x4 worldMatrix{}, cameraMatrix{}, viewMatrix{}, projectionMatrix{}, worldViewProjectionMatrix{};
+
+    //WVP
+    ID3D12Resource* wvpResource = Shader::CreateBufferResource(device, sizeof(Matrix4x4));
+    Matrix4x4* wvpData = nullptr;
+    wvpResource->Map(0, nullptr, reinterpret_cast<void**>(&wvpData));
+    *wvpData = MathUtils::Matrix::MakeIdentity();
+
+    //LoadTexture
+    DirectX::ScratchImage mipImages = TextureManager::LoadTexture("resources/uvChecker.png");
+    const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
+    ID3D12Resource* textureResource = TextureManager::CreateTextureResource(device, metadata);
+    TextureManager::UploadTexture(textureResource, mipImages);
+    D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU = TextureManager::MakeSRV(metadata, srvDescriptorHeap, device, textureResource);
 
     ///Init ImGui
     IMGUI_CHECKVERSION();
@@ -408,12 +455,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     ImGui::StyleColorsDark();
     ImGui_ImplWin32_Init(hwnd_);
     ImGui_ImplDX12_Init(device, swapChainDesc.BufferCount, rtvDesc.Format, srvDescriptorHeap, srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-
-    DirectX::ScratchImage mipImages = TextureManager::LoadTexture("resources/uvChecker.png");
-    const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
-    ID3D12Resource* textureResource = TextureManager::CreateTextureResource(device, metadata);
-    TextureManager::UploadTexture(textureResource, mipImages);
-    D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU = TextureManager::MakeSRV(metadata, srvDescriptorHeap, device, textureResource);
 
     ///MainLoop
     MSG msg {};
@@ -430,7 +471,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             ///do somethings.../// Update
             ImGui::ShowDemoWindow();
 
-            transform.rotate.y += 0.03f;
+            transform.rotate.y += 0.01f;
              worldMatrix = MathUtils::Matrix::MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
             cameraMatrix = MathUtils::Matrix::MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
             viewMatrix = cameraMatrix.Inverse();
@@ -441,7 +482,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
             ///back/// Render
             ImGui::Render();
+
             UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
+
+            D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 
             D3D12_RESOURCE_BARRIER barrier {};
             barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -451,7 +495,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 
             commandList->ResourceBarrier(1, &barrier);
-            commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false, nullptr);
+
+            //commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false, nullptr);
+            commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false, &dsvHandle);
+
+            commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1, 0, 0, nullptr);
+
             float clearColor[] = {0.25f, 0.1f, 0.5f, 1.0f};
             commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor, 0, nullptr);
 
@@ -476,7 +525,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             //setting srv descriptor table
             commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 
-            commandList->DrawInstanced(3, 1, 0, 0);
+            commandList->DrawInstanced(3/*角形*/ * 2/*枚*/, 1, 0, 0);
 
             //IMGUI RENDER
             ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
@@ -519,7 +568,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
 
-    TextureManager::UploadTexture(textureResource, mipImages);
+
+    dsvDescriptorHeap->Release();
+    depthStencilResource->Release();
     textureResource->Release();
     wvpResource->Release();
     materialResource->Release();
