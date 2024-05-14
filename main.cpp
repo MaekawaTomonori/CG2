@@ -315,7 +315,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     IDxcBlob* pixelShaderBlob = Shader::CompileShader(L"Object3d.PS.hlsl", L"ps_6_0", dxcUtils, dxcCompiler, includeHandler);
     assert(pixelShaderBlob != nullptr);
 
-    //PSO
+    //PSO Desc setting
     D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsPipelineStateDesc {};
     graphicsPipelineStateDesc.pRootSignature = rootSignature;
     graphicsPipelineStateDesc.InputLayout = inputLayoutDesc;
@@ -337,12 +337,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     assert(SUCCEEDED(hResult));
 
     ///create vertex resource
-    ID3D12Resource* vertexResource = Shader::CreateBufferResource(device, sizeof(VertexData) * 3);
+    ID3D12Resource* vertexResource = Shader::CreateBufferResource(device, sizeof(VertexData) * (3/*3角形*/ * 2 /*個数*/));
 
     //リソースにデータを書き込む
     VertexData* vertexData = nullptr;
     vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
 
+    //1枚目
     //LeftBtm
 	vertexData[0].position = {-0.5f, -0.5f, 0, 1};
     vertexData[0].texCoord = {0, 1};
@@ -355,12 +356,24 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     vertexData[2].position = {0.5f, -0.5f, 0, 1};
 	vertexData[2].texCoord = { 1, 1};
 
+    //2枚目
+    //LeftBtm
+    vertexData[3].position = {-0.5f, -0.5f, 0.5f, 1.f};
+    vertexData[3].texCoord = {0,1};
+
+    //Top
+    vertexData[4].position = {0, 0, 0, 1};
+    vertexData[4].texCoord = {0.5f, 0};
+
+    //RightBtm
+    vertexData[5].position = {0.5f, -0.5f, -0.5f, 1};
+    vertexData[5].texCoord = {1, 1};
 
     System::Debug::Log(System::Debug::ConvertString(std::format(L"[Debug] : VertexResource\n")));
 
 
 	//MaterialResource
-    ID3D12Resource* materialResource = Shader::CreateBufferResource(device, sizeof(VertexData));
+    ID3D12Resource* materialResource = Shader::CreateBufferResource(device, sizeof(VertexData) * (3/*角形*/ * 2/*枚*/));
     Vector4* materialData = nullptr;
     materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
     //*materialData = {0.5f, 0.5f, 0, 1};
@@ -375,9 +388,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     ////vertex buffer view
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView {};
     vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
-    vertexBufferView.SizeInBytes = sizeof(VertexData) * 3;
+    vertexBufferView.SizeInBytes = sizeof(VertexData) * (3 /*角形*/ * 2 /*枚*/);
     vertexBufferView.StrideInBytes = sizeof(VertexData);
-
 
     ///Viewport Scissor
 
@@ -396,6 +408,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     scissorRect.right = CLIENT_WIDTH;
     scissorRect.top = 0;
     scissorRect.bottom = CLIENT_HEIGHT;
+
+    //DepthStencilTextureを作成
+    ID3D12Resource* depthStencilResource = TextureManager::CreateDepthStencilTextureResource(device, CLIENT_WIDTH, CLIENT_HEIGHT);
+
+    ///EO PSO
 
     //Transform
     Transform transform {{1.f,1.f,1.f}, {0.f,0.f,0.f}, {0.f,0.f,0.f}},
@@ -430,7 +447,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             ///do somethings.../// Update
             ImGui::ShowDemoWindow();
 
-            transform.rotate.y += 0.03f;
+            transform.rotate.y += 0.01f;
              worldMatrix = MathUtils::Matrix::MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
             cameraMatrix = MathUtils::Matrix::MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
             viewMatrix = cameraMatrix.Inverse();
@@ -441,6 +458,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
             ///back/// Render
             ImGui::Render();
+
+            //DepthReset
+            
+
+            
+
             UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
             D3D12_RESOURCE_BARRIER barrier {};
@@ -476,7 +499,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             //setting srv descriptor table
             commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 
-            commandList->DrawInstanced(3, 1, 0, 0);
+            commandList->DrawInstanced(3/*角形*/ * 2/*枚*/, 1, 0, 0);
 
             //IMGUI RENDER
             ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
@@ -519,7 +542,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
 
-    TextureManager::UploadTexture(textureResource, mipImages);
+    depthStencilResource->Release();
     textureResource->Release();
     wvpResource->Release();
     materialResource->Release();
