@@ -1,5 +1,5 @@
 #include <format>
-
+#include "DataContainer.h"
 #include "Heap.h"
 #include "MathUtils.h"
 #include "Shader.h"
@@ -72,44 +72,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     //Initialize DirectX and Registering GPU
 
-    IDXGIFactory7* dxgiFactory = nullptr;
-    HRESULT hResult = CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory));
+    HRESULT hResult;
 
-    assert(SUCCEEDED(hResult));
+    //Create Device
+    DataContainer::getInstance().RegisteringDevice();
 
-    IDXGIAdapter4* useAdapter = nullptr;
-    for (UINT i = 0; dxgiFactory->EnumAdapterByGpuPreference(i, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&useAdapter)) != DXGI_ERROR_NOT_FOUND; ++i){
-        DXGI_ADAPTER_DESC3 adapterDesc {};
-        hResult = useAdapter->GetDesc3(&adapterDesc);
-        assert(SUCCEEDED(hResult));
-
-        if (!(adapterDesc.Flags & DXGI_ADAPTER_FLAG3_SOFTWARE)){
-            System::Debug::Log(std::format(L"Use Adapter:{}\n", adapterDesc.Description));
-            break;
-        }
-        useAdapter = nullptr;
-    }
-
-    assert(useAdapter != nullptr);
-
-    ID3D12Device* device = nullptr;
-
-    D3D_FEATURE_LEVEL featureLevels[] = {
-        D3D_FEATURE_LEVEL_12_2, D3D_FEATURE_LEVEL_12_1,D3D_FEATURE_LEVEL_12_0
-    };
-    const char* featureLevelStrings[] = {"12.2", "12.1", "12.0"};
-
-    for (size_t i = 0; i < _countof(featureLevels); ++i){
-        hResult = D3D12CreateDevice(useAdapter, featureLevels[i], IID_PPV_ARGS(&device));
-
-        if (SUCCEEDED(hResult)){
-            System::Debug::Log(std::format("FeatureLevel : {}\n", featureLevelStrings[i]));
-            break;
-        }
-    }
-
-    assert(device != nullptr);
-    System::Debug::Log(System::Debug::ConvertString(std::format(L"Complete create D3D12Device!!!\n")));
+#define device DataContainer::getInstance().getDevice()
+#define dxgiFactory DataContainer::getInstance().getDXGIFactory()
 
     //================================================================================
 
@@ -456,6 +425,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     ImGui_ImplWin32_Init(hwnd_);
     ImGui_ImplDX12_Init(device, swapChainDesc.BufferCount, rtvDesc.Format, srvDescriptorHeap, srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
+    //ImGUI用の色ステータス
+    float color[4] = {materialData->x, materialData->y, materialData->z, materialData->w};
+
     ///MainLoop
     MSG msg {};
     while (msg.message != WM_QUIT){
@@ -470,6 +442,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
             ///do somethings.../// Update
             ImGui::ShowDemoWindow();
+
+
+#ifdef _DEBUG
+            ImGui::Begin("Debug");
+            ImGui::SliderFloat4("Color", color, 0, 1);
+            *materialData = color;
+            ImGui::End();
+#endif
 
             transform.rotate.y += 0.01f;
              worldMatrix = MathUtils::Matrix::MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
@@ -594,9 +574,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     commandList->Release();
     commandAllocator->Release();
     commandQueue->Release();
-    device->Release();
+    /*device->Release();
     useAdapter->Release();
-    dxgiFactory->Release();
+    dxgiFactory->Release();*/
+    DataContainer::getInstance().Destroy();
     #ifdef _DEBUG
     debugController->Release();
     #endif
