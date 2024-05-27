@@ -1,8 +1,11 @@
 #include <format>
-#include "DataContainer.h"
+#include "DeviceManager.h"
 #include "Heap.h"
 #include "MathUtils.h"
 #include "Shader.h"
+#include "CommandController.h"
+#include "D3ResourceLeakChecker.h"
+#include "Sprite.h"
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     if(ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam)){
@@ -17,11 +20,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-//Rect
-const int32_t CLIENT_WIDTH = 1280;
-const int32_t CLIENT_HEIGHT = 720;
-
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
+    D3ResourceLeakChecker leakChecker;
     //INITIALIZE COMPONENT OBJECT MODEL
     CoInitializeEx(0, COINIT_MULTITHREADED);
 
@@ -75,10 +75,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     HRESULT hResult;
 
     //Create Device
-    DataContainer::getInstance().RegisteringDevice();
+    Singleton<DeviceManager>::getInstance()->RegisteringDevice();
 
-#define device DataContainer::getInstance().getDevice()
-#define dxgiFactory DataContainer::getInstance().getDXGIFactory()
+#define device Singleton<DeviceManager>::getInstance()->getDevice().Get()
+#define dxgiFactory Singleton<DeviceManager>::getInstance()->getDXGIFactory().Get()
 
     //================================================================================
 
@@ -109,25 +109,22 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     #endif
 
+#define cmd Singleton<CommandController>::getInstance()
+
+    cmd->Generate();
 
     //Create CommandQueue
-    ID3D12CommandQueue* commandQueue = nullptr;
-    D3D12_COMMAND_QUEUE_DESC commandQueueDesc {};
-    hResult = device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&commandQueue));
-
-    assert(SUCCEEDED(hResult));
+    ID3D12CommandQueue* commandQueue = cmd->getCommandQueue().Get();
+    D3D12_COMMAND_QUEUE_DESC commandQueueDesc = cmd->getCommandQueueDesc();
 
     //Create CommandList
 
     //Command Alloc
-    ID3D12CommandAllocator* commandAllocator = nullptr;
-    hResult = device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&commandAllocator));
-    assert(SUCCEEDED(hResult));
+    ID3D12CommandAllocator* commandAllocator = cmd->getAlloc().Get();
+    
 
     //Command List
-    ID3D12GraphicsCommandList* commandList = nullptr;
-    hResult = device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocator, nullptr, IID_PPV_ARGS(&commandList));
-    assert(SUCCEEDED(hResult));
+    ID3D12GraphicsCommandList* commandList = cmd->getList().Get();
 
     //Swap Chain
     IDXGISwapChain4* swapChain = nullptr;
@@ -426,7 +423,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     ImGui_ImplDX12_Init(device, swapChainDesc.BufferCount, rtvDesc.Format, srvDescriptorHeap, srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
     //ImGUI用の色ステータス
-    float color[4] = {materialData->x, materialData->y, materialData->z, materialData->w};
+    //float color[4] = {materialData->x, materialData->y, materialData->z, materialData->w};
+
+    Sprite* sprite = new Sprite;
+    sprite->Initialize(textureSrvHandleGPU);
 
     ///MainLoop
     MSG msg {};
@@ -444,10 +444,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             ImGui::ShowDemoWindow();
 
 
+            /*
+             * ImGui
+             */
 #ifdef _DEBUG
             ImGui::Begin("Debug");
-            ImGui::SliderFloat4("Color", color, 0, 1);
-            *materialData = color;
+            ImGui::SliderFloat4("Color", &materialData->x, 0, 1);
+            //*materialData = color;
             ImGui::End();
 #endif
 
@@ -459,6 +462,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             worldViewProjectionMatrix = worldMatrix * (viewMatrix * projectionMatrix);
             *wvpData = worldViewProjectionMatrix;
             *wvpData = worldMatrix;
+
+            /*
+             * Sprite Update
+             */
+            sprite->Update();
 
             ///back/// Render
             ImGui::Render();
@@ -494,6 +502,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
             commandList->SetGraphicsRootSignature(rootSignature);
             commandList->SetPipelineState(graphicsPipelineState);
+
+            //Draw
+            
+
             commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 
             commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -506,6 +518,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 
             commandList->DrawInstanced(3/*角形*/ * 2/*枚*/, 1, 0, 0);
+
+            //2D描画
+            sprite->Draw();
 
             //IMGUI RENDER
             ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
@@ -548,6 +563,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
 
+    sprite->Release();
+    delete sprite;
 
     dsvDescriptorHeap->Release();
     depthStencilResource->Release();
@@ -571,26 +588,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     swapChainResources[0]->Release();
     swapChainResources[1]->Release();
     swapChain->Release();
-    commandList->Release();
-    commandAllocator->Release();
-    commandQueue->Release();
-    /*device->Release();
-    useAdapter->Release();
-    dxgiFactory->Release();*/
-    DataContainer::getInstance().Destroy();
     #ifdef _DEBUG
     debugController->Release();
     #endif
     CloseWindow(hwnd_);
-
-    IDXGIDebug1* debug;
-    if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&debug)))){
-        debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
-        debug->ReportLiveObjects(DXGI_DEBUG_APP, DXGI_DEBUG_RLO_ALL);
-        debug->ReportLiveObjects(DXGI_DEBUG_D3D12, DXGI_DEBUG_RLO_ALL);
-        debug->Release();
-    }
-
     //QUIT COMPONENT OBJECT MODEL
     CoUninitialize();
 

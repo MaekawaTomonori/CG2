@@ -31,3 +31,6 @@
 #include "imgui_impl_win32.h"
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
+//Rect
+static const int32_t CLIENT_WIDTH = 1280;
+static const int32_t CLIENT_HEIGHT = 720;

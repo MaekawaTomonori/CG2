@@ -1,22 +1,13 @@
-#include "DataContainer.h"
+#include "DeviceManager.h"
 
-DataContainer& DataContainer::getInstance() {
-    static DataContainer instance;
-    return instance;
-}
-
-void DataContainer::Destroy() const {
-    device_->Release();
-    useAdapter_->Release();
-    dxgiFactory_->Release();
-}
-
-void DataContainer::RegisteringDevice() {
+void DeviceManager::RegisteringDevice() {
     if(device_){return;}
 
     HRESULT hResult = CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory_));
 
     assert(SUCCEEDED(hResult));
+
+
     for (UINT i = 0; dxgiFactory_->EnumAdapterByGpuPreference(i, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&useAdapter_)) != DXGI_ERROR_NOT_FOUND; ++i){
         DXGI_ADAPTER_DESC3 adapterDesc {};
 		hResult = useAdapter_->GetDesc3(&adapterDesc);
@@ -38,7 +29,7 @@ void DataContainer::RegisteringDevice() {
     const char* featureLevelStrings[] = {"12.2", "12.1", "12.0"};
     
     for (size_t i = 0; i < _countof(featureLevels); ++i){
-        hResult = D3D12CreateDevice(useAdapter_, featureLevels[i], IID_PPV_ARGS(&device_));
+        hResult = D3D12CreateDevice(useAdapter_.Get(), featureLevels[i], IID_PPV_ARGS(&device_));
 
         if (SUCCEEDED(hResult)){
             System::Debug::Log(std::format("FeatureLevel : {}\n", featureLevelStrings[i]));

@@ -102,7 +102,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"  "$(TargetDir)d
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="DataContainer.cpp" />
+    <ClCompile Include="CommandController.cpp" />
+    <ClCompile Include="DeviceManager.cpp" />
     <ClCompile Include="externals\imgui\imgui.cpp" />
     <ClCompile Include="externals\imgui\imgui_demo.cpp" />
     <ClCompile Include="externals\imgui\imgui_draw.cpp" />
@@ -121,11 +122,14 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"  "$(TargetDir)d
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pch.h</PrecompiledHeaderFile>
     </ClCompile>
     <ClCompile Include="Shader.cpp" />
+    <ClCompile Include="Sprite.cpp" />
     <ClCompile Include="System.cpp" />
     <ClCompile Include="TextureManager.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="DataContainer.h" />
+    <ClInclude Include="CommandController.h" />
+    <ClInclude Include="D3ResourceLeakChecker.h" />
+    <ClInclude Include="DeviceManager.h" />
     <ClInclude Include="externals\imgui\imconfig.h" />
     <ClInclude Include="externals\imgui\imgui.h" />
     <ClInclude Include="externals\imgui\imgui_impl_dx12.h" />
@@ -137,9 +141,12 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"  "$(TargetDir)d
     <ClInclude Include="Heap.h" />
     <ClInclude Include="MathUtils.h" />
     <ClInclude Include="Matrix.h" />
+    <ClInclude Include="Nullable.h" />
     <ClInclude Include="Object.h" />
     <ClInclude Include="Pch.h" />
     <ClInclude Include="Shader.h" />
+    <ClInclude Include="Singleton.h" />
+    <ClInclude Include="Sprite.h" />
     <ClInclude Include="System.h" />
     <ClInclude Include="TextureManager.h" />
     <ClInclude Include="Transform.h" />
