@@ -1,4 +1,12 @@
 ﻿#pragma once
+
+struct Color{
+    float red;
+    float green;
+    float blue;
+    float alpha;
+};
+
 class Object{
     // ==Objectに必要なもの==
     // VertexResource

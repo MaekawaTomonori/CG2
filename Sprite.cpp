@@ -37,6 +37,9 @@ void Sprite::Initialize() {
     vertexData[5].position = {640, 360, 0, 1};
     vertexData[5].texCoord = {1,1};
 
+
+    vertexResource_->Map(0, nullptr, reinterpret_cast<void**>(&color_));
+
     transformationMatrixResource_ = Shader::CreateBufferResource(Singleton<DeviceManager>::getInstance()->getDevice().Get(), sizeof(Matrix4x4));
     
 	transformMatrix_ = nullptr;
@@ -48,6 +51,11 @@ void Sprite::Initialize() {
 }
 
 void Sprite::Update() {
+
+    ImGui::Begin("SpriteDebug");
+    ImGui::SliderFloat4("Color", &color_.red, 0, 1);
+    ImGui::End();
+
 	Matrix4x4 worldMatrix = MathUtils::Matrix::MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
     Matrix4x4 viewMatrix = MathUtils::Matrix::MakeIdentity();
     Matrix4x4 projectionMatrix = MathUtils::Matrix::MakeOrthogonalMatrix(0, float(CLIENT_WIDTH), 0, float(CLIENT_HEIGHT), 0, 100.f);
@@ -68,5 +76,10 @@ void Sprite::Draw() {
 
 void Sprite::Initialize(D3D12_GPU_DESCRIPTOR_HANDLE textureHandle) {
     textureHandle_ = textureHandle;
+    Initialize();
+}
+
+void Sprite::Initialize(Color color) {
+	this->color_ = color;
     Initialize();
 }
