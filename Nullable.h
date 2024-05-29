@@ -10,7 +10,7 @@ template <typename T>
 class nullable{
     private:
     bool has_value_;
-    T value_;
+    T value_{};
 
     public:
     /**

@@ -1,5 +1,8 @@
 ﻿#pragma once
 namespace MathUtils{
+    const float F_PI = 3.14159265358979323846264338327950288f;
+    const double PI = 3.14159265358979323846264338327950288;
+
     namespace Matrix {
         Matrix4x4 MakeIdentity();
         Matrix4x4 MakeTranslateMatrix(const Vector3& velocity);

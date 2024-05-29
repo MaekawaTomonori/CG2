@@ -1,5 +1,15 @@
 #include "TextureManager.h"
 
+#include "DeviceManager.h"
+
+Texture::Texture(const std::string& name, ID3D12DescriptorHeap* srvDescHeap) {
+    image_ = Singleton<TextureManager>::getInstance()->LoadTexture(name);
+    const DirectX::TexMetadata& metaData = image_.GetMetadata();
+    textureResource_ = Singleton<TextureManager>::getInstance()->CreateTextureResource(Singleton<DeviceManager>::getInstance()->getDevice().Get(), metaData);
+    Singleton<TextureManager>::getInstance()->UploadTexture(textureResource_.Get(), image_);
+    shaderResouceViewHandle_ = Singleton<TextureManager>::getInstance()->MakeSRV(metaData, srvDescHeap, Singleton<DeviceManager>::getInstance()->getDevice().Get(), textureResource_.Get());
+}
+
 DirectX::ScratchImage TextureManager::LoadTexture(const std::string& fileName) {
     DirectX::ScratchImage image {};
     std::wstring filePathW = System::Debug::ConvertString(fileName);

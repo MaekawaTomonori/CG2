@@ -1,4 +1,3 @@
-#include "Pch.h"
 #include "Heap.h"
 
 ID3D12DescriptorHeap* Heap::CreateDescriptorHeap(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT descriptorsNum, bool shaderVisible) {

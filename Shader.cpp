@@ -1,4 +1,3 @@
-#include "Pch.h"
 #include "Shader.h"
 
 ///create vertex resource

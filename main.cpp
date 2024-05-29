@@ -5,6 +5,7 @@
 #include "Shader.h"
 #include "CommandController.h"
 #include "D3ResourceLeakChecker.h"
+#include "Sphere.h"
 #include "Sprite.h"
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -77,8 +78,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     //Create Device
     Singleton<DeviceManager>::getInstance()->RegisteringDevice();
 
-#define device Singleton<DeviceManager>::getInstance()->getDevice().Get()
-#define dxgiFactory Singleton<DeviceManager>::getInstance()->getDXGIFactory().Get()
+    #define device Singleton<DeviceManager>::getInstance()->getDevice().Get()
+    #define dxgiFactory Singleton<DeviceManager>::getInstance()->getDXGIFactory().Get()
 
     //================================================================================
 
@@ -109,19 +110,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     #endif
 
-#define cmd Singleton<CommandController>::getInstance()
+    #define cmd Singleton<CommandController>::getInstance()
 
+    // Create Command //
     cmd->Generate();
 
-    //Create CommandQueue
-    ID3D12CommandQueue* commandQueue = cmd->getCommandQueue().Get();
-    D3D12_COMMAND_QUEUE_DESC commandQueueDesc = cmd->getCommandQueueDesc();
 
-    //Create CommandList
+    //Command Queue
+    ID3D12CommandQueue* commandQueue = cmd->getCommandQueue().Get();
+
 
     //Command Alloc
     ID3D12CommandAllocator* commandAllocator = cmd->getAlloc().Get();
-    
+
 
     //Command List
     ID3D12GraphicsCommandList* commandList = cmd->getList().Get();
@@ -209,7 +210,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     ///create vertex resource
     ID3D12Resource* vertexResource = Shader::CreateBufferResource(device, sizeof(VertexData) * (3/*3角形*/ * 2 /*個数*/));
 
-    
+
     VertexData* vertexData = nullptr;
 
     //DepthStencilTextureを作成
@@ -340,16 +341,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     //1枚目
     //LeftBtm
-	vertexData[0].position = {-0.5f, -0.5f, 0, 1};
+    vertexData[0].position = {-0.5f, -0.5f, 0, 1};
     vertexData[0].texCoord = {0, 1};
 
     //Top
     vertexData[1].position = {0, 0.5f, 0, 1};
-	vertexData[1].texCoord = {0.5f, 0};
+    vertexData[1].texCoord = {0.5f, 0};
 
     //RightBtm
     vertexData[2].position = {0.5f, -0.5f, 0, 1};
-	vertexData[2].texCoord = { 1, 1};
+    vertexData[2].texCoord = {1, 1};
 
     //2枚目
     //LeftBtm
@@ -387,10 +388,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     scissorRect.top = 0;
     scissorRect.bottom = CLIENT_HEIGHT;
 
-    
+
     ///EO PSO
 
-	//Vertex MaterialResource
+    //Vertex MaterialResource
     ID3D12Resource* materialResource = Shader::CreateBufferResource(device, sizeof(VertexData) * (3/*角形*/ * 2/*枚*/));
     Vector4* materialData = nullptr;
     materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
@@ -400,7 +401,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     //Transform
     Transform transform {{1.f,1.f,1.f}, {0.f,0.f,0.f}, {0.f,0.f,0.f}},
         cameraTransform {{1,1,1}, {0,0,0}, {0,0,-5}};
-    Matrix4x4 worldMatrix{}, cameraMatrix{}, viewMatrix{}, projectionMatrix{}, worldViewProjectionMatrix{};
+    Matrix4x4 worldMatrix {}, cameraMatrix {}, viewMatrix {}, projectionMatrix {}, worldViewProjectionMatrix {};
 
     //WVP
     ID3D12Resource* wvpResource = Shader::CreateBufferResource(device, sizeof(Matrix4x4));
@@ -409,11 +410,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     *wvpData = MathUtils::Matrix::MakeIdentity();
 
     //LoadTexture
-    DirectX::ScratchImage mipImages = TextureManager::LoadTexture("resources/uvChecker.png");
+    /*DirectX::ScratchImage mipImages = Singleton<TextureManager>::getInstance()->LoadTexture("resources/uvChecker.png");
     const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
     ID3D12Resource* textureResource = TextureManager::CreateTextureResource(device, metadata);
-    TextureManager::UploadTexture(textureResource, mipImages);
-    D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU = TextureManager::MakeSRV(metadata, srvDescriptorHeap, device, textureResource);
+    Singleton<TextureManager>::getInstance()->UploadTexture(textureResource, mipImages);
+    D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU = Singleton<TextureManager>::getInstance()->MakeSRV(metadata, srvDescriptorHeap, device, textureResource);*/
+
+    std::shared_ptr<Texture> texture(new Texture("Resources/uvChecker.png", srvDescriptorHeap));
+
 
     ///Init ImGui
     IMGUI_CHECKVERSION();
@@ -426,7 +430,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     //float color[4] = {materialData->x, materialData->y, materialData->z, materialData->w};
 
     Sprite* sprite = new Sprite;
-    sprite->Initialize(textureSrvHandleGPU);
+    sprite->Initialize(texture->getHandle());
+
+    /*Sphere* sphere = new Sphere;
+    sphere->Initialize(textureSrvHandleGPU);*/
 
     ///MainLoop
     MSG msg {};
@@ -468,6 +475,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
              */
             sprite->Update();
 
+            //sphere->Update();
+
             ///back/// Render
             ImGui::Render();
 
@@ -489,6 +498,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
             commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1, 0, 0, nullptr);
 
+            //back pic
             float clearColor[] = {0.25f, 0.1f, 0.5f, 1.0f};
             commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor, 0, nullptr);
 
@@ -497,27 +507,29 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             commandList->SetDescriptorHeaps(1, descriptorHeaps);
             
             //stack command
+
+            //general
             commandList->RSSetViewports(1, &viewport);
             commandList->RSSetScissorRects(1, &scissorRect);
 
             commandList->SetGraphicsRootSignature(rootSignature);
             commandList->SetPipelineState(graphicsPipelineState);
 
-            //Draw
-            
-
-            commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
-
+            ////DrawTriangle
+            //描画するものが三角形と登録
             commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            //commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 
-            //setting cbv
-            commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
-            commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
+            ////setting cbv
+            //commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
+            //commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
 
-            //setting srv descriptor table
-            commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
+            ////setting srv descriptor table
+            //commandList->SetGraphicsRootDescriptorTable(2, texture->getHandle());
+            ////render
+            //commandList->DrawInstanced(3/*角形*/ * 2/*枚*/, 1, 0, 0);
 
-            commandList->DrawInstanced(3/*角形*/ * 2/*枚*/, 1, 0, 0);
+            //sphere->Draw();
 
             //2D描画
             sprite->Draw();
@@ -565,10 +577,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     sprite->Release();
     delete sprite;
+    /*sphere->Release();
+    delete sphere;*/
 
     dsvDescriptorHeap->Release();
     depthStencilResource->Release();
-    textureResource->Release();
     wvpResource->Release();
     materialResource->Release();
     vertexResource->Release();

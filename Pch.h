@@ -15,6 +15,7 @@
 #pragma comment(lib, "dxcompiler.lib")
 
 #include "System.h"
+#include "Nullable.h"
 #include "TextureManager.h"
 
 #include "Vector2.h"
