@@ -369,8 +369,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     Singleton<TextureManager>::getInstance()->UploadTexture(textureResource, mipImages);
     D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU = Singleton<TextureManager>::getInstance()->MakeSRV(metadata, srvDescriptorHeap, device, textureResource);*/
 
-    //std::shared_ptr<Texture> texture;
-    //texture = std::make_shared<Texture>(Texture("Resources/uvChecker.png", srvDescriptorHeap.Get()));
+    std::shared_ptr<Texture> texture;
+    texture = std::make_shared<Texture>(Texture("Resources/uvChecker.png", srvDescriptorHeap.Get()));
 
 
     ///Init ImGui
@@ -380,8 +380,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     ImGui_ImplWin32_Init(hwnd_);
     ImGui_ImplDX12_Init(device, swapChainDesc.BufferCount, rtvDesc.Format, srvDescriptorHeap.Get(), srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
-    //Triangle* triangle = new Triangle;
-    //triangle->Initialize();
+    std::shared_ptr<Triangle> triangle;
+    triangle.reset(new Triangle);
+    triangle->Initialize();
 
     //Sprite* sprite = new Sprite;
     //sprite->Initialize(texture->getHandle());
@@ -408,7 +409,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
              * Triangle Update
              */
             //System::Debug::Log(System::Debug::ConvertString(L"[Triangle] : Updating...\n"));
-            //triangle->Update();
+            triangle->Update();
             //System::Debug::Log(System::Debug::ConvertString(L"[Triangle] : Updated\n"));
 
             /*
@@ -458,10 +459,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             commandList->SetGraphicsRootSignature(rootSignature.Get());
             commandList->SetPipelineState(graphicsPipelineState.Get());
 
-            //commandList->SetGraphicsRootDescriptorTable(2, texture->getHandle());
+            commandList->SetGraphicsRootDescriptorTable(2, texture->getHandle());
 
             //DrawTriangle
-            //triangle->Draw();
+            triangle->Draw();
 
             //sphere->Draw();
 
@@ -509,7 +510,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
 
-    //delete triangle;
     //sprite->Release();
     //delete sprite;
     /*sphere->Release();
@@ -529,6 +529,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     CloseWindow(hwnd_);
     DestroyWindow(hwnd_);
+
     //QUIT COMPONENT OBJECT MODEL
     CoUninitialize();
 

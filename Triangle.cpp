@@ -5,11 +5,9 @@
 #include "MathUtils.h"
 #include "Shader.h"
 
-Triangle::~Triangle() {
-    materialResource_->Release();
-
-    System::Debug::Log(System::Debug::ConvertString(L"[Triangle] : Delete\n"));
-}
+//Triangle::~Triangle() {
+//    System::Debug::Log(System::Debug::ConvertString(L"[Triangle] : Delete\n"));
+//}
 
 void Triangle::Initialize() {
     System::Debug::Log(System::Debug::ConvertString(L"[Triangle] : Initializing...\n"));
