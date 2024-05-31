@@ -2,7 +2,6 @@
 
 #include "DeviceManager.h"
 
-#define device Singleton<DeviceManager>::getInstance()
 
 Microsoft::WRL::ComPtr<ID3D12CommandQueue> CommandController::getCommandQueue() const {
 	return queue_;
@@ -21,6 +20,7 @@ Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> CommandController::getList() c
 }
 
 void CommandController::Generate() {
+#define device Singleton<DeviceManager>::getInstance()
 	HRESULT hResult = device->getDevice()->CreateCommandQueue(&queueDesc_, IID_PPV_ARGS(&queue_));
 
 	assert(SUCCEEDED(hResult));
@@ -29,4 +29,6 @@ void CommandController::Generate() {
 
 	hResult = device->getDevice()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, allocator_.Get(), nullptr, IID_PPV_ARGS(&list_));
 	assert(SUCCEEDED(hResult));
+#undef device
 }
+

@@ -10,14 +10,14 @@ class CommandController : Singleton<CommandController>{
 	///Member
 private:
     //Queue
-    Microsoft::WRL::ComPtr<ID3D12CommandQueue> queue_ = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12CommandQueue> queue_;
     D3D12_COMMAND_QUEUE_DESC queueDesc_{};
 
     //allocator
-    Microsoft::WRL::ComPtr<ID3D12CommandAllocator> allocator_ = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12CommandAllocator> allocator_;
 
     //list
-    Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> list_ = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> list_;
 
 public:
     //Generate

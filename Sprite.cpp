@@ -6,6 +6,7 @@
 #include "Shader.h"
 
 void Sprite::Initialize() {
+    System::Debug::Log(System::Debug::ConvertString(L"[Sprite] : Initializing...\n"));
     //四角だが、2枚の三角形を組み合わせて四角として扱う
     vertexResource_ = Shader::CreateBufferResource(Singleton<DeviceManager>::getInstance()->getDevice().Get(), sizeof(VertexData) * 6);
 
@@ -49,6 +50,7 @@ void Sprite::Initialize() {
     //color
     //vertexResource_->Map(0, nullptr, reinterpret_cast<void**>(&color_));
     //*color_ = {1,1,1,1};
+    System::Debug::Log(System::Debug::ConvertString(L"[Sprite] : Initialized!\n"));
 }
 
 void Sprite::Update() {
@@ -71,7 +73,6 @@ void Sprite::Update() {
 }
 
 void Sprite::Draw() {
-    Singleton<CommandController>::getInstance()->getList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     Singleton<CommandController>::getInstance()->getList()->IASetVertexBuffers(0, 1, &vertexBufferView_);
     Singleton<CommandController>::getInstance()->getList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResource_->GetGPUVirtualAddress());
 
@@ -87,7 +88,7 @@ void Sprite::Initialize(D3D12_GPU_DESCRIPTOR_HANDLE textureHandle) {
     Initialize();
 }
 
-void Sprite::Initialize(Color* color) {
-	this->color_ = color;
+void Sprite::Initialize(Color& color) {
+	this->color_ = std::make_unique<Color>(color);
     Initialize();
 }

@@ -4,13 +4,13 @@
 class Sprite :
     public Object{
 
-    Matrix4x4* transformMatrix_ = nullptr;
+    std::unique_ptr<Matrix4x4> transformMatrix_ = nullptr;
 public:
     void Initialize() override;
     void Update() override;
     void Draw() override;
 
     void Initialize(D3D12_GPU_DESCRIPTOR_HANDLE textureHandle);
-    void Initialize(Color* color);
+    void Initialize(Color& color);
 };
 

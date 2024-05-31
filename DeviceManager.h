@@ -14,9 +14,9 @@ class DeviceManager final : Singleton<DeviceManager>{
     }
 
     //Members
-    Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory_ = nullptr;
-    Microsoft::WRL::ComPtr<IDXGIAdapter4> useAdapter_ = nullptr;
-    Microsoft::WRL::ComPtr<ID3D12Device> device_ = nullptr;
+    Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory_;
+    Microsoft::WRL::ComPtr<IDXGIAdapter4> useAdapter_;
+    Microsoft::WRL::ComPtr<ID3D12Device> device_;
 
 public:
     Microsoft::WRL::ComPtr<ID3D12Device> getDevice() const {

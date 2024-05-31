@@ -19,9 +19,9 @@ class Object{
     // TransformMatrix用のCBV
     // CPUで扱うTransform
 protected:
-	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource_ = nullptr;
-    Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResource_ = nullptr;
-    Matrix4x4* transformationMatrixData = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource_;
+    Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResource_;
+    std::unique_ptr<Matrix4x4> transformationMatrixData;
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView_{};
     Transform transform_{};
 
@@ -29,7 +29,7 @@ protected:
     nullable<D3D12_GPU_DESCRIPTOR_HANDLE> textureHandle_;
 
     //初期値は白
-    Color* color_ = nullptr;
+    std::unique_ptr<Color> color_ = std::make_unique<Color>(Color(1.f,1.f,1.f,1.f));
 
 public:
 	Object() = default;
@@ -37,11 +37,5 @@ public:
     virtual void Initialize() = 0;
     virtual void Update() = 0;
     virtual void Draw() = 0;
-    void Release() const {
-        vertexResource_->Release();
-        transformationMatrixResource_->Release();
-        delete transformationMatrixData;
-        delete color_;
-    }
 };
 

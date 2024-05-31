@@ -1,7 +1,7 @@
 #include "Shader.h"
 
 ///create vertex resource
-ID3D12Resource* Shader::CreateBufferResource(ID3D12Device* device, size_t sizeInBytes) {
+ID3D12Resource* Shader::CreateBufferResource(Microsoft::WRL::ComPtr<ID3D12Device> device, size_t sizeInBytes) {
     //VertexResource Heap setting
     D3D12_HEAP_PROPERTIES uploadHeapProperties {};
     uploadHeapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;

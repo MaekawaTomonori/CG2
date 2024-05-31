@@ -56,7 +56,7 @@ void Sphere::Initialize() {
 
     transformationMatrixResource_ = Shader::CreateBufferResource(Singleton<DeviceManager>::getInstance()->getDevice().Get(), sizeof(Matrix4x4));
     transformationMatrixData = nullptr;
-    transformationMatrixResource_->Map(0, nullptr, reinterpret_cast<void**>(transformationMatrixData));
+    transformationMatrixResource_->Map(0, nullptr, reinterpret_cast<void**>(transformationMatrixData.get()));
     *transformationMatrixData = MathUtils::Matrix::MakeIdentity();
 }
 
