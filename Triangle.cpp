@@ -49,8 +49,8 @@ void Triangle::Initialize() {
 }
 
 void Triangle::Update() {
-    transform_.rotate.y += 0.01f;
-    worldMatrix = MathUtils::Matrix::MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
+    //transform_.rotate.y += 0.01f;
+    worldMatrix = MathUtils::Matrix::MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
     cameraMatrix = MathUtils::Matrix::MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
     viewMatrix = cameraMatrix.Inverse();
     projectionMatrix = MathUtils::Matrix::MakePerspectiveFovMatrix(0.45f, static_cast<float>(CLIENT_HEIGHT) / static_cast<float>(CLIENT_WIDTH), 0.1f, 100.f);
@@ -59,7 +59,10 @@ void Triangle::Update() {
     *transformationMatrixData = worldMatrix;
 
     ImGui::Begin("Triangle");
-    ImGui::SliderFloat4("color", &color_->x, 0, 1);
+    ImGui::SliderFloat3("rotate", &transform_.rotate.x, -10, 10);
+    ImGui::SliderFloat3("scale", &transform_.scale.x, 0, 3);
+    ImGui::SliderFloat3("translate", &transform_.translate.x, -2, 2);
+    ImGui::SliderFloat3("color", &color_->x, 0, 1);
     ImGui::End();
 }
 
