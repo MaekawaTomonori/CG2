@@ -7,7 +7,7 @@ Texture::Texture(const std::string& name, ID3D12DescriptorHeap* srvDescHeap) {
     const DirectX::TexMetadata& metaData = image_.GetMetadata();
     textureResource_ = Singleton<TextureManager>::getInstance()->CreateTextureResource(Singleton<DeviceManager>::getInstance()->getDevice().Get(), metaData);
     Singleton<TextureManager>::getInstance()->UploadTexture(textureResource_.Get(), image_);
-    shaderResouceViewHandle_ = Singleton<TextureManager>::getInstance()->MakeSRV(metaData, srvDescHeap, Singleton<DeviceManager>::getInstance()->getDevice().Get(), textureResource_.Get());
+    shaderResourceViewHandle_ = Singleton<TextureManager>::getInstance()->MakeSRV(metaData, srvDescHeap, Singleton<DeviceManager>::getInstance()->getDevice().Get(), textureResource_.Get());
 }
 
 DirectX::ScratchImage TextureManager::LoadTexture(const std::string& fileName) {
@@ -55,8 +55,6 @@ ID3D12Resource* TextureManager::CreateTextureResource(ID3D12Device* device, cons
     ID3D12Resource* resource = nullptr;
     HRESULT hr = device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&resource));
     assert(SUCCEEDED(hr));
-
-    
 
     return resource;
 }

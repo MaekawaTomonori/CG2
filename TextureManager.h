@@ -7,14 +7,14 @@
 class Texture{
     DirectX::ScratchImage image_;
     Microsoft::WRL::ComPtr<ID3D12Resource> textureResource_;
-    D3D12_GPU_DESCRIPTOR_HANDLE shaderResouceViewHandle_{};
+    D3D12_GPU_DESCRIPTOR_HANDLE shaderResourceViewHandle_{};
 
 public:
 	//Texture();
     Texture(const std::string& name, ID3D12DescriptorHeap* srvDescHeap);
 
     D3D12_GPU_DESCRIPTOR_HANDLE getHandle() const {
-        return shaderResouceViewHandle_;
+        return shaderResourceViewHandle_;
     }
 };
 

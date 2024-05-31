@@ -9,5 +9,6 @@ ID3D12DescriptorHeap* Heap::CreateDescriptorHeap(ID3D12Device* device, D3D12_DES
 
     HRESULT hr = device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&heap));
     assert(SUCCEEDED(hr));
+    
     return heap;
 }
