@@ -396,6 +396,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	std::shared_ptr<Triangle> triangle2;
     triangle2.reset(new Triangle);
     triangle2->Initialize();
+    triangle2->setTransform({{1,1,1}, {0, MathUtils::F_PI /2.f, 0}, {0,0,0}});
 
     //Sprite* sprite = new Sprite;
     //sprite->Initialize(texture->getHandle());
@@ -414,7 +415,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             Singleton<ImGuiManager>::getInstance()->Begin();
 
             ///do somethings.../// Update
+
+#ifdef _DEBUG
             ImGui::ShowDemoWindow();
+#endif
 
             /*
              * Triangle Update

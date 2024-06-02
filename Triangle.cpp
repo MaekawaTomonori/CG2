@@ -59,7 +59,7 @@ void Triangle::Initialize() {
 }
 
 void Triangle::Update() {
-    //transform_.rotate.y += 0.01f;
+    transform_.rotate.y += 0.01f;
     worldMatrix = MathUtils::Matrix::MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
     cameraMatrix = MathUtils::Matrix::MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
     viewMatrix = cameraMatrix.Inverse();

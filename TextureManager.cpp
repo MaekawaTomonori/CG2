@@ -53,7 +53,12 @@ ID3D12Resource* TextureManager::CreateTextureResource(ID3D12Device* device, cons
     //Step3
     //Generate Resource
     ID3D12Resource* resource = nullptr;
-    HRESULT hr = device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&resource));
+
+#ifdef _DEBUG
+	HRESULT hr = 
+#endif
+
+	device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&resource));
     assert(SUCCEEDED(hr));
 
     return resource;
@@ -64,7 +69,12 @@ void TextureManager::UploadTexture(ID3D12Resource* texture, const DirectX::Scrat
 
     for(size_t mipLevel = 0; mipLevel < metadata.mipLevels; ++mipLevel){
         const DirectX::Image* img = mipImages.GetImage(mipLevel, 0, 0);
-        HRESULT hr = texture->WriteToSubresource(UINT(mipLevel), nullptr, img->pixels, UINT(img->rowPitch), UINT(img->slicePitch));
+
+#ifdef _DEBUG
+        HRESULT hr = 
+#endif
+
+            texture->WriteToSubresource(UINT(mipLevel), nullptr, img->pixels, UINT(img->rowPitch), UINT(img->slicePitch));
         assert(SUCCEEDED(hr));
     }
 }
@@ -105,7 +115,10 @@ ID3D12Resource* TextureManager::CreateDepthStencilTextureResource(ID3D12Device* 
     depthClearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
     ID3D12Resource* resource = nullptr;
-    HRESULT hr = device->CreateCommittedResource(
+#ifdef _DEBUG
+    HRESULT hr = 
+#endif 
+        device->CreateCommittedResource(
         &heapProperties,
         D3D12_HEAP_FLAG_NONE,
         &resourceDesc,

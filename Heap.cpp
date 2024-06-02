@@ -7,7 +7,10 @@ ID3D12DescriptorHeap* Heap::CreateDescriptorHeap(ID3D12Device* device, D3D12_DES
     desc.NumDescriptors = descriptorsNum;
     desc.Flags = shaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 
-    HRESULT hr = device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&heap));
+#ifdef _DEBUG
+    HRESULT hr = 
+#endif
+        device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&heap));
     assert(SUCCEEDED(hr));
     
     return heap;
