@@ -373,13 +373,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     std::shared_ptr<Texture> texture;
     texture = std::make_shared<Texture>(Texture("Resources/uvChecker.png", srvDescriptorHeap.Get()));
 
-
+#ifdef _DEBUG
     ///Init ImGui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
     ImGui_ImplWin32_Init(hwnd_);
     ImGui_ImplDX12_Init(device, swapChainDesc.BufferCount, rtvDesc.Format, srvDescriptorHeap.Get(), srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+#endif
 
     std::shared_ptr<Triangle> triangle;
     triangle.reset(new Triangle);

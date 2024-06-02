@@ -32,6 +32,9 @@ protected:
     //初期値は白 リソースにマッピングするので生ぽでOK
     Color* color_ = new Color(1.f,1.f,1.f,1.f);
 
+    //識別
+    std::string uuid_;
+
 public:
 	Object() = default;
     virtual ~Object() = default;

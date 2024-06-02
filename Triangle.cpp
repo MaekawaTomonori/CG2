@@ -5,6 +5,9 @@
 #include "MathUtils.h"
 #include "Shader.h"
 
+#include <rpc.h>
+
+#pragma comment(lib, "Rpcrt4.lib")
 //Triangle::~Triangle() {
 //    System::Debug::Log(System::Debug::ConvertString(L"[Triangle] : Delete\n"));
 //}
@@ -45,6 +48,13 @@ void Triangle::Initialize() {
     materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&color_));
     *color_ = {1,1,1,1};
 
+    UUID uuid;
+    UuidCreate(&uuid);
+    RPC_CSTR szUuid = nullptr;
+    UuidToStringA(&uuid, &szUuid);
+    uuid_ = (char*)szUuid;
+    RpcStringFreeA(&szUuid);
+
     System::Debug::Log(System::Debug::ConvertString(L"[Triangle] : Initialized!\n"));
 }
 
@@ -58,17 +68,9 @@ void Triangle::Update() {
     *transformationMatrixData = worldViewProjectionMatrix;
     *transformationMatrixData = worldMatrix;
 
-    ImGui::Begin("Triangle");
-
-    if (ImGui::TreeNode("triangle")){
-        ImGui::SliderFloat3("rotate", &transform_.rotate.x, -10, 10);
-        ImGui::SliderFloat3("scale", &transform_.scale.x, 0, 3);
-        ImGui::SliderFloat3("translate", &transform_.translate.x, -2, 2);
-        ImGui::SliderFloat3("color", &color_->x, 0, 1);
-
-        ImGui::TreePop();
-    }
-    ImGui::End();
+    //Triangle obj;
+    //Singleton<ImGuiManager>::getInstance()->AddQueue(std::bind(&Triangle::ImGuiDraw, &obj));
+    ImGuiDraw();
 }
 
 void Triangle::Draw() {
@@ -78,4 +80,18 @@ void Triangle::Draw() {
     Singleton<CommandController>::getInstance()->getList().Get()->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
     Singleton<CommandController>::getInstance()->getList().Get()->SetGraphicsRootConstantBufferView(1, transformationMatrixResource_->GetGPUVirtualAddress());
     Singleton<CommandController>::getInstance()->getList().Get()->DrawInstanced(3, 1, 0, 0);
+}
+
+void Triangle::ImGuiDraw() {
+    ImGui::Begin("Triangle");
+
+    if (ImGui::TreeNode(uuid_.c_str())){
+        ImGui::SliderFloat3("rotate", &transform_.rotate.x, -10, 10);
+        ImGui::SliderFloat3("scale", &transform_.scale.x, 0, 3);
+        ImGui::SliderFloat3("translate", &transform_.translate.x, -2, 2);
+        ImGui::SliderFloat3("color", &color_->x, 0, 1);
+
+        ImGui::TreePop();
+    }
+    ImGui::End();
 }

@@ -5,7 +5,7 @@
 class ImGuiManager : Singleton<ImGuiManager>{
     friend Singleton<ImGuiManager>;
 
-    std::queue<std::function<void>> drawQueue_;
+    std::queue<std::function<void()>> drawQueue_;
 
 public:
 	//void Initialize();
@@ -15,6 +15,6 @@ public:
     void Draw() const;
     void End() const;
 
-	void AddQueue(const std::function<void>& func);
+	void AddQueue(const std::function<void()>& func);
 };
 
