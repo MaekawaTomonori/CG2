@@ -22,7 +22,7 @@ protected:
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource_;
     Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResource_;
     //リソースにマップするもの
-    Matrix4x4* transformationMatrixData;
+    Matrix4x4* transformationMatrixData = nullptr;
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView_{};
     Transform transform_{};
 
@@ -33,7 +33,7 @@ protected:
     Color* color_ = new Color(1.f,1.f,1.f,1.f);
 
     //識別
-    std::string uuid_;
+    std::string uuid_{};
 
 public:
 	Object() = default;

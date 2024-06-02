@@ -1,12 +1,16 @@
 #include "TextureManager.h"
 
+#include "CommandController.h"
 #include "DeviceManager.h"
+#include "Shader.h"
+#include "DirectXTex/d3dx12.h"
 
 Texture::Texture(const std::string& name, ID3D12DescriptorHeap* srvDescHeap) {
     image_ = Singleton<TextureManager>::getInstance()->LoadTexture(name);
     const DirectX::TexMetadata& metaData = image_.GetMetadata();
-    textureResource_ = Singleton<TextureManager>::getInstance()->CreateTextureResource(Singleton<DeviceManager>::getInstance()->getDevice().Get(), metaData);
-    Singleton<TextureManager>::getInstance()->UploadTexture(textureResource_.Get(), image_);
+    textureResource_ = Singleton<TextureManager>::getInstance()->CreateTextureResource(metaData);
+    Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource = Singleton<TextureManager>::getInstance()->UploadTextureData(textureResource_.Get(), image_);
+
     shaderResourceViewHandle_ = Singleton<TextureManager>::getInstance()->MakeSRV(metaData, srvDescHeap, Singleton<DeviceManager>::getInstance()->getDevice().Get(), textureResource_.Get());
 }
 
@@ -25,7 +29,7 @@ DirectX::ScratchImage TextureManager::LoadTexture(const std::string& fileName) {
     return mipImages;
 }
 
-ID3D12Resource* TextureManager::CreateTextureResource(ID3D12Device* device, const DirectX::TexMetadata& metadata) {
+ID3D12Resource* TextureManager::CreateTextureResource(const DirectX::TexMetadata& metadata) {
     /// FLOW  ///
     /// 1. Resource setting from metadata
     /// 2. Heap setting
@@ -46,9 +50,9 @@ ID3D12Resource* TextureManager::CreateTextureResource(ID3D12Device* device, cons
     //Step2
     //HEAP SETTINGs
     D3D12_HEAP_PROPERTIES heapProperties {};
-    heapProperties.Type = D3D12_HEAP_TYPE_CUSTOM;
-    heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
-    heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
+    heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
+    //heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
+    //heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
 
     //Step3
     //Generate Resource
@@ -56,27 +60,38 @@ ID3D12Resource* TextureManager::CreateTextureResource(ID3D12Device* device, cons
 
 #ifdef _DEBUG
 	HRESULT hr = 
-#endif
-
-	device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&resource));
+#endif  
+    Singleton<DeviceManager>::getInstance()->getDevice().Get()->CreateCommittedResource(
+        &heapProperties, 
+        D3D12_HEAP_FLAG_NONE, 
+        &resourceDesc, 
+        D3D12_RESOURCE_STATE_COPY_DEST,
+        nullptr, 
+        IID_PPV_ARGS(&resource)
+    );
     assert(SUCCEEDED(hr));
 
     return resource;
 }
 
-void TextureManager::UploadTexture(ID3D12Resource* texture, const DirectX::ScratchImage& mipImages) {
-    const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
+//Attribute 返り値無視をユルサナイ属性。メンヘラメソッド。
+[[nodiscard]]
+ID3D12Resource* TextureManager::UploadTextureData(ID3D12Resource* texture, const DirectX::ScratchImage& mipImages) {
+    std::vector<D3D12_SUBRESOURCE_DATA> subResources;
+    DirectX::PrepareUpload(Singleton<DeviceManager>::getInstance()->getDevice().Get(), mipImages.GetImages(), mipImages.GetImageCount(), mipImages.GetMetadata(), subResources);
+    uint32_t intermediateSize = (uint32_t)GetRequiredIntermediateSize(texture, 0, UINT(subResources.size()));
+    ID3D12Resource* intermediateResourse = Shader::CreateBufferResource(Singleton<DeviceManager>::getInstance()->getDevice().Get(), intermediateSize);
+    UpdateSubresources(Singleton<CommandController>::getInstance()->getList().Get(), texture, intermediateResourse, 0, 0, UINT(subResources.size()), subResources.data());
 
-    for(size_t mipLevel = 0; mipLevel < metadata.mipLevels; ++mipLevel){
-        const DirectX::Image* img = mipImages.GetImage(mipLevel, 0, 0);
-
-#ifdef _DEBUG
-        HRESULT hr = 
-#endif
-
-            texture->WriteToSubresource(UINT(mipLevel), nullptr, img->pixels, UINT(img->rowPitch), UINT(img->slicePitch));
-        assert(SUCCEEDED(hr));
-    }
+    D3D12_RESOURCE_BARRIER barrier {};
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+    barrier.Transition.pResource = texture;
+    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_GENERIC_READ;
+    Singleton<CommandController>::getInstance()->getList().Get()->ResourceBarrier(1, &barrier);
+    return intermediateResourse;
 }
 
 D3D12_GPU_DESCRIPTOR_HANDLE TextureManager::MakeSRV(const DirectX::TexMetadata& metadata, ID3D12DescriptorHeap* srvDescriptorHeap, ID3D12Device* device, ID3D12Resource* textureResource) {
