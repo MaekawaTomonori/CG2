@@ -5,11 +5,12 @@
 #include "MathUtils.h"
 #include "Shader.h"
 
-Triangle::~Triangle() {
-    materialResource_->Release();
+#include <rpc.h>
 
-    System::Debug::Log(System::Debug::ConvertString(L"[Triangle] : Delete\n"));
-}
+#pragma comment(lib, "Rpcrt4.lib")
+//Triangle::~Triangle() {
+//    System::Debug::Log(System::Debug::ConvertString(L"[Triangle] : Delete\n"));
+//}
 
 void Triangle::Initialize() {
     System::Debug::Log(System::Debug::ConvertString(L"[Triangle] : Initializing...\n"));
@@ -47,12 +48,19 @@ void Triangle::Initialize() {
     materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&color_));
     *color_ = {1,1,1,1};
 
+    UUID uuid;
+    UuidCreate(&uuid);
+    RPC_CSTR szUuid = nullptr;
+    UuidToStringA(&uuid, &szUuid);
+    uuid_ = (char*)szUuid;
+    RpcStringFreeA(&szUuid);
+
     System::Debug::Log(System::Debug::ConvertString(L"[Triangle] : Initialized!\n"));
 }
 
 void Triangle::Update() {
     transform_.rotate.y += 0.01f;
-    worldMatrix = MathUtils::Matrix::MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
+    worldMatrix = MathUtils::Matrix::MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
     cameraMatrix = MathUtils::Matrix::MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
     viewMatrix = cameraMatrix.Inverse();
     projectionMatrix = MathUtils::Matrix::MakePerspectiveFovMatrix(0.45f, static_cast<float>(CLIENT_HEIGHT) / static_cast<float>(CLIENT_WIDTH), 0.1f, 100.f);
@@ -60,9 +68,9 @@ void Triangle::Update() {
     *transformationMatrixData = worldViewProjectionMatrix;
     *transformationMatrixData = worldMatrix;
 
-    ImGui::Begin("Triangle");
-    ImGui::SliderFloat4("color", &color_->x, 0, 1);
-    ImGui::End();
+    //Triangle obj;
+    //Singleton<ImGuiManager>::getInstance()->AddQueue(std::bind(&Triangle::ImGuiDraw, &obj));
+    ImGuiDraw();
 }
 
 void Triangle::Draw() {
@@ -72,4 +80,20 @@ void Triangle::Draw() {
     Singleton<CommandController>::getInstance()->getList().Get()->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
     Singleton<CommandController>::getInstance()->getList().Get()->SetGraphicsRootConstantBufferView(1, transformationMatrixResource_->GetGPUVirtualAddress());
     Singleton<CommandController>::getInstance()->getList().Get()->DrawInstanced(3, 1, 0, 0);
+}
+
+void Triangle::ImGuiDraw() {
+#ifdef _DEBUG
+	ImGui::Begin("Triangle");
+
+    if (ImGui::TreeNode(uuid_.c_str())){
+        ImGui::SliderFloat3("rotate", &transform_.rotate.x, -10, 10);
+        ImGui::SliderFloat3("scale", &transform_.scale.x, 0, 3);
+        ImGui::SliderFloat3("translate", &transform_.translate.x, -2, 2);
+        ImGui::SliderFloat3("color", &color_->x, 0, 1);
+
+        ImGui::TreePop();
+    }
+	ImGui::End();
+#endif
 }

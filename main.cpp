@@ -5,6 +5,7 @@
 #include "Shader.h"
 #include "CommandController.h"
 #include "D3ResourceLeakChecker.h"
+#include "ImGuiManager.h"
 #include "Sphere.h"
 #include "Sprite.h"
 #include "Triangle.h"
@@ -86,7 +87,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     //================================================================================
 
-
+    //const uint32_t SRV_DESCRIPTOR_SIZE = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    //const uint32_t RTV_DESCRIPTOR_SIZE = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    //const uint32_t DSV_DESCRIPTOR_SIZE = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
     #ifdef _DEBUG
     ID3D12InfoQueue* infoQueue = nullptr;
@@ -167,7 +170,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
     rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
-    D3D12_CPU_DESCRIPTOR_HANDLE rtvStartHandle = rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvStartHandle = rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
     D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[2];
     rtvHandles[0] = rtvStartHandle;
     device->CreateRenderTargetView(swapChainResources[0].Get(), &rtvDesc, rtvHandles[0]);
@@ -369,19 +372,31 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     Singleton<TextureManager>::getInstance()->UploadTexture(textureResource, mipImages);
     D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU = Singleton<TextureManager>::getInstance()->MakeSRV(metadata, srvDescriptorHeap, device, textureResource);*/
 
-    //std::shared_ptr<Texture> texture;
-    //texture = std::make_shared<Texture>(Texture("Resources/uvChecker.png", srvDescriptorHeap.Get()));
+    std::shared_ptr<Texture> texture;
+    texture = std::make_shared<Texture>(Texture("./Resources/uvChecker.png", srvDescriptorHeap.Get()));
 
+    //std::shared_ptr<Texture> texture2;
+    //texture2 = std::make_shared<Texture>(Texture("Resources/monsterBall.png", srvDescriptorHeap.Get()));
 
+    //表示用の借り物
+    Texture* renderTexture = texture.get();
+
+#ifdef _DEBUG
     ///Init ImGui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
     ImGui_ImplWin32_Init(hwnd_);
     ImGui_ImplDX12_Init(device, swapChainDesc.BufferCount, rtvDesc.Format, srvDescriptorHeap.Get(), srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+#endif
 
-    //Triangle* triangle = new Triangle;
-    //triangle->Initialize();
+    std::shared_ptr<Triangle> triangle;
+    triangle.reset(new Triangle);
+    triangle->Initialize();
+	std::shared_ptr<Triangle> triangle2;
+    triangle2.reset(new Triangle);
+    triangle2->Initialize();
+    triangle2->setTransform({{1,1,1}, {0, MathUtils::F_PI /2.f, 0}, {0,0,0}});
 
     //Sprite* sprite = new Sprite;
     //sprite->Initialize(texture->getHandle());
@@ -397,19 +412,53 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             DispatchMessage(&msg);
         } else{
             ///FrameBegin
-            ImGui_ImplDX12_NewFrame();
-            ImGui_ImplWin32_NewFrame();
-            ImGui::NewFrame();
+            Singleton<ImGuiManager>::getInstance()->Begin();
 
             ///do somethings.../// Update
+
+#ifdef _DEBUG
             ImGui::ShowDemoWindow();
+#endif
 
             /*
              * Triangle Update
              */
             //System::Debug::Log(System::Debug::ConvertString(L"[Triangle] : Updating...\n"));
-            //triangle->Update();
+            triangle->Update();
+            triangle2->Update();
             //System::Debug::Log(System::Debug::ConvertString(L"[Triangle] : Updated\n"));
+
+#ifdef _DEBUG
+            static ImGuiComboFlags flags = 0;
+            static int currentIndex = 0;
+            const char* items[] = {"uvChecker"/*, "MonsterBall"*/};
+        	const char* prev = items[currentIndex];
+            ImGui::Begin("Texture");
+            if(ImGui::BeginCombo("TextureID", prev, flags)){
+                for (int i = 0; i < IM_ARRAYSIZE(items); ++i){
+                    const bool isSelected = currentIndex == i;
+                    if(ImGui::Selectable(items[i], isSelected)){
+                        currentIndex = i;
+                        
+                    }
+                	if(isSelected){
+                        
+                        ImGui::SetItemDefaultFocus();
+                    }
+                	switch (currentIndex){
+                        case 0:
+                            renderTexture = texture.get();
+                            break;
+                        //case 1:
+                            //renderTexture = texture2.get();
+                            //break;
+                        default: ;
+                    }
+                }
+                ImGui::EndCombo();
+            }
+            ImGui::End();
+#endif
 
             /*
              * Sprite Update
@@ -421,7 +470,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             //sphere->Update();
 
             ///back/// Render
-            ImGui::Render();
+            Singleton<ImGuiManager>::getInstance()->End();
 
             UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
@@ -447,8 +496,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
             //descriptor heap for render(imgui)
             ID3D12DescriptorHeap* descriptorHeaps[] = {srvDescriptorHeap.Get()};
-            commandList->SetDescriptorHeaps(1, descriptorHeaps);
-            
+            Singleton<CommandController>::getInstance()->getList()->SetDescriptorHeaps(1, descriptorHeaps);
+
             //stack command
 
             //general
@@ -458,10 +507,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             commandList->SetGraphicsRootSignature(rootSignature.Get());
             commandList->SetPipelineState(graphicsPipelineState.Get());
 
-            //commandList->SetGraphicsRootDescriptorTable(2, texture->getHandle());
+            commandList->SetGraphicsRootDescriptorTable(2, renderTexture->getHandle());
 
             //DrawTriangle
-            //triangle->Draw();
+            triangle->Draw();
+            triangle2->Draw();
 
             //sphere->Draw();
 
@@ -469,7 +519,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         	//sprite->Draw();
 
             //IMGUI RENDER
-            ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
+            Singleton<ImGuiManager>::getInstance()->Draw();
 
             //
             //Command 詰み終わり
@@ -504,12 +554,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         }
     }
 
+#ifdef _DEBUG
     //end imgui
     ImGui_ImplDX12_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
+#endif
 
-    //delete triangle;
     //sprite->Release();
     //delete sprite;
     /*sphere->Release();
@@ -529,6 +580,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     CloseWindow(hwnd_);
     DestroyWindow(hwnd_);
+
     //QUIT COMPONENT OBJECT MODEL
     CoUninitialize();
 

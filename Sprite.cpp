@@ -89,6 +89,6 @@ void Sprite::Initialize(D3D12_GPU_DESCRIPTOR_HANDLE textureHandle) {
 }
 
 void Sprite::Initialize(Color& color) {
-	this->color_ = std::make_unique<Color>(color);
+	this->color_ = &color;
     Initialize();
 }
