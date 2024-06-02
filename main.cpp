@@ -369,11 +369,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     /*DirectX::ScratchImage mipImages = Singleton<TextureManager>::getInstance()->LoadTexture("resources/uvChecker.png");
     const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
     ID3D12Resource* textureResource = TextureManager::CreateTextureResource(device, metadata);
-    Singleton<TextureManager>::getInstance()->UploadTexture(textureResource, mipImages);
+    Singleton<TextureManager>::getInstance()->UploadTextureData(textureResource, mipImages);
     D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU = Singleton<TextureManager>::getInstance()->MakeSRV(metadata, srvDescriptorHeap, device, textureResource);*/
 
     std::shared_ptr<Texture> texture;
     texture = std::make_shared<Texture>(Texture("./Resources/uvChecker.png", srvDescriptorHeap.Get()));
+
+    /*Singleton<CommandController>::getInstance()->getList().Get()->Close();
+    ID3D12CommandList* lists[] = {Singleton<CommandController>::getInstance()->getList().Get()};
+    Singleton<CommandController>::getInstance()->getCommandQueue()->ExecuteCommandLists(1, lists);
+
+    Singleton<CommandController>::getInstance()->getAlloc().Get()->Reset();
+    Singleton<CommandController>::getInstance()->getList().Get()->Reset(Singleton<CommandController>::getInstance()->getAlloc().Get(), nullptr);*/
 
     //std::shared_ptr<Texture> texture2;
     //texture2 = std::make_shared<Texture>(Texture("Resources/monsterBall.png", srvDescriptorHeap.Get()));
