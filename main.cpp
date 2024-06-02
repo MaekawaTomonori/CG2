@@ -5,6 +5,7 @@
 #include "Shader.h"
 #include "CommandController.h"
 #include "D3ResourceLeakChecker.h"
+#include "ImGuiManager.h"
 #include "Sphere.h"
 #include "Sprite.h"
 #include "Triangle.h"
@@ -383,6 +384,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     std::shared_ptr<Triangle> triangle;
     triangle.reset(new Triangle);
     triangle->Initialize();
+	std::shared_ptr<Triangle> triangle2;
+    triangle2.reset(new Triangle);
+    triangle2->Initialize();
 
     //Sprite* sprite = new Sprite;
     //sprite->Initialize(texture->getHandle());
@@ -398,9 +402,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             DispatchMessage(&msg);
         } else{
             ///FrameBegin
-            ImGui_ImplDX12_NewFrame();
-            ImGui_ImplWin32_NewFrame();
-            ImGui::NewFrame();
+            Singleton<ImGuiManager>::getInstance()->Begin();
 
             ///do somethings.../// Update
             ImGui::ShowDemoWindow();
@@ -410,6 +412,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
              */
             //System::Debug::Log(System::Debug::ConvertString(L"[Triangle] : Updating...\n"));
             triangle->Update();
+            triangle2->Update();
             //System::Debug::Log(System::Debug::ConvertString(L"[Triangle] : Updated\n"));
 
             /*
@@ -422,7 +425,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             //sphere->Update();
 
             ///back/// Render
-            ImGui::Render();
+            Singleton<ImGuiManager>::getInstance()->End();
 
             UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
@@ -448,8 +451,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
             //descriptor heap for render(imgui)
             ID3D12DescriptorHeap* descriptorHeaps[] = {srvDescriptorHeap.Get()};
-            commandList->SetDescriptorHeaps(1, descriptorHeaps);
-            
+            Singleton<CommandController>::getInstance()->getList()->SetDescriptorHeaps(1, descriptorHeaps);
+
             //stack command
 
             //general
@@ -463,6 +466,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
             //DrawTriangle
             triangle->Draw();
+            triangle2->Draw();
 
             //sphere->Draw();
 
@@ -470,7 +474,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         	//sprite->Draw();
 
             //IMGUI RENDER
-            ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
+            Singleton<ImGuiManager>::getInstance()->Draw();
 
             //
             //Command 詰み終わり

@@ -59,10 +59,15 @@ void Triangle::Update() {
     *transformationMatrixData = worldMatrix;
 
     ImGui::Begin("Triangle");
-    ImGui::SliderFloat3("rotate", &transform_.rotate.x, -10, 10);
-    ImGui::SliderFloat3("scale", &transform_.scale.x, 0, 3);
-    ImGui::SliderFloat3("translate", &transform_.translate.x, -2, 2);
-    ImGui::SliderFloat3("color", &color_->x, 0, 1);
+
+    if (ImGui::TreeNode("triangle")){
+        ImGui::SliderFloat3("rotate", &transform_.rotate.x, -10, 10);
+        ImGui::SliderFloat3("scale", &transform_.scale.x, 0, 3);
+        ImGui::SliderFloat3("translate", &transform_.translate.x, -2, 2);
+        ImGui::SliderFloat3("color", &color_->x, 0, 1);
+
+        ImGui::TreePop();
+    }
     ImGui::End();
 }
 
