@@ -83,7 +83,8 @@ void Triangle::Draw() {
 }
 
 void Triangle::ImGuiDraw() {
-    ImGui::Begin("Triangle");
+#ifdef _DEBUG
+	ImGui::Begin("Triangle");
 
     if (ImGui::TreeNode(uuid_.c_str())){
         ImGui::SliderFloat3("rotate", &transform_.rotate.x, -10, 10);
@@ -93,5 +94,6 @@ void Triangle::ImGuiDraw() {
 
         ImGui::TreePop();
     }
-    ImGui::End();
+	ImGui::End();
+#endif
 }

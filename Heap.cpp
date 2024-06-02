@@ -12,3 +12,17 @@ ID3D12DescriptorHeap* Heap::CreateDescriptorHeap(ID3D12Device* device, D3D12_DES
     
     return heap;
 }
+
+D3D12_CPU_DESCRIPTOR_HANDLE Heap::getCPUDescriptorHandle(ID3D12DescriptorHeap* descriptorHeap, DescriptorHeapType type,
+	uint32_t index) {
+    D3D12_CPU_DESCRIPTOR_HANDLE handle = descriptorHeap->GetCPUDescriptorHandleForHeapStart();
+    handle.ptr += ( + index);
+    return handle;
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE Heap::getGPUDescriptorHandle(ID3D12DescriptorHeap* descriptorHeap, DescriptorHeapType type,
+	uint32_t index) {
+    D3D12_GPU_DESCRIPTOR_HANDLE handle = descriptorHeap->GetGPUDescriptorHandleForHeapStart();
+    handle.ptr += ( + index);
+    return handle;
+}

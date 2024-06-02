@@ -87,7 +87,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     //================================================================================
 
-
+    //const uint32_t SRV_DESCRIPTOR_SIZE = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    //const uint32_t RTV_DESCRIPTOR_SIZE = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    //const uint32_t DSV_DESCRIPTOR_SIZE = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
     #ifdef _DEBUG
     ID3D12InfoQueue* infoQueue = nullptr;
@@ -168,7 +170,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
     rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
-    D3D12_CPU_DESCRIPTOR_HANDLE rtvStartHandle = rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvStartHandle = rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
     D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[2];
     rtvHandles[0] = rtvStartHandle;
     device->CreateRenderTargetView(swapChainResources[0].Get(), &rtvDesc, rtvHandles[0]);
@@ -373,6 +375,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     std::shared_ptr<Texture> texture;
     texture = std::make_shared<Texture>(Texture("Resources/uvChecker.png", srvDescriptorHeap.Get()));
 
+    //std::shared_ptr<Texture> texture2;
+    //texture2 = std::make_shared<Texture>(Texture("Resources/monsterBall.png", srvDescriptorHeap.Get()));
+
+    //表示用の借り物
+    Texture* renderTexture = texture.get();
+
 #ifdef _DEBUG
     ///Init ImGui
     IMGUI_CHECKVERSION();
@@ -415,6 +423,38 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             triangle->Update();
             triangle2->Update();
             //System::Debug::Log(System::Debug::ConvertString(L"[Triangle] : Updated\n"));
+
+#ifdef _DEBUG
+            static ImGuiComboFlags flags = 0;
+            static int currentIndex = 0;
+            const char* items[] = {"uvChecker"/*, "MonsterBall"*/};
+        	const char* prev = items[currentIndex];
+            ImGui::Begin("Texture");
+            if(ImGui::BeginCombo("TextureID", prev, flags)){
+                for (int i = 0; i < IM_ARRAYSIZE(items); ++i){
+                    const bool isSelected = currentIndex == i;
+                    if(ImGui::Selectable(items[i], isSelected)){
+                        currentIndex = i;
+                        
+                    }
+                	if(isSelected){
+                        
+                        ImGui::SetItemDefaultFocus();
+                    }
+                	switch (currentIndex){
+                        case 0:
+                            renderTexture = texture.get();
+                            break;
+                        //case 1:
+                            //renderTexture = texture2.get();
+                            //break;
+                        default: ;
+                    }
+                }
+                ImGui::EndCombo();
+            }
+            ImGui::End();
+#endif
 
             /*
              * Sprite Update
@@ -463,7 +503,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             commandList->SetGraphicsRootSignature(rootSignature.Get());
             commandList->SetPipelineState(graphicsPipelineState.Get());
 
-            commandList->SetGraphicsRootDescriptorTable(2, texture->getHandle());
+            commandList->SetGraphicsRootDescriptorTable(2, renderTexture->getHandle());
 
             //DrawTriangle
             triangle->Draw();
@@ -510,10 +550,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         }
     }
 
+#ifdef _DEBUG
     //end imgui
     ImGui_ImplDX12_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
+#endif
 
     //sprite->Release();
     //delete sprite;
