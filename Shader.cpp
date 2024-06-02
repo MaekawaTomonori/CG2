@@ -17,7 +17,12 @@ ID3D12Resource* Shader::CreateBufferResource(Microsoft::WRL::ComPtr<ID3D12Device
     materialResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
     ID3D12Resource* materialResource = nullptr;
-    HRESULT hR = device->CreateCommittedResource(&uploadHeapProperties, D3D12_HEAP_FLAG_NONE, &materialResourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&materialResource));
+
+#ifdef _DEBUG
+	HRESULT hR =
+#endif
+
+        device->CreateCommittedResource(&uploadHeapProperties, D3D12_HEAP_FLAG_NONE, &materialResourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&materialResource));
 
     assert(SUCCEEDED(hR));
 

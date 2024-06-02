@@ -11,5 +11,9 @@ public:
     void Update() override;
     void Draw() override;
     void ImGuiDraw();
+
+    void setTransform(const Transform& t) {
+        transform_ = t;
+    }
 };
 
