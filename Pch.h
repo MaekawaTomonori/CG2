@@ -35,3 +35,5 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 //Rect
 static const int32_t CLIENT_WIDTH = 1280;
 static const int32_t CLIENT_HEIGHT = 720;
+
+static Transform Camera {{1, 1, 1}, {0,0,0},{0,0,-5}};

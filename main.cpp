@@ -397,19 +397,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     ImGui_ImplDX12_Init(device, swapChainDesc.BufferCount, rtvDesc.Format, srvDescriptorHeap.Get(), srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 #endif
 
-    std::shared_ptr<Triangle> triangle;
+    /*std::shared_ptr<Triangle> triangle;
     triangle.reset(new Triangle);
     triangle->Initialize();
 	std::shared_ptr<Triangle> triangle2;
     triangle2.reset(new Triangle);
     triangle2->Initialize();
-    triangle2->setTransform({{1,1,1}, {0, MathUtils::F_PI /2.f, 0}, {0,0,0}});
+    triangle2->setTransform({{1,1,1}, {0, MathUtils::F_PI /2.f, 0}, {0,0,0}});*/
 
     //Sprite* sprite = new Sprite;
     //sprite->Initialize(texture->getHandle());
 
-    /*Sphere* sphere = new Sphere;
-    sphere->Initialize(textureSrvHandleGPU);*/
+    std::shared_ptr<Sphere> sphere = std::make_shared<Sphere>();
+    sphere->Initialize(texture->getHandle());
 
     ///MainLoop
     MSG msg {};
@@ -431,9 +431,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
              * Triangle Update
              */
             //System::Debug::Log(System::Debug::ConvertString(L"[Triangle] : Updating...\n"));
-            triangle->Update();
-            triangle2->Update();
+            //triangle->Update();
+            //triangle2->Update();
             //System::Debug::Log(System::Debug::ConvertString(L"[Triangle] : Updated\n"));
+
+            sphere->Update();
 
 #ifdef _DEBUG
             static ImGuiComboFlags flags = 0;
@@ -517,10 +519,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             commandList->SetGraphicsRootDescriptorTable(2, renderTexture->getHandle());
 
             //DrawTriangle
-            triangle->Draw();
-            triangle2->Draw();
+            //triangle->Draw();
+            //triangle2->Draw();
 
-            //sphere->Draw();
+            sphere->Draw();
 
             //2D描画
         	//sprite->Draw();

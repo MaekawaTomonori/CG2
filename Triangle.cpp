@@ -75,7 +75,7 @@ void Triangle::Update() {
 
 void Triangle::Draw() {
 	Singleton<CommandController>::getInstance()->getList().Get()->IASetVertexBuffers(0, 1, &vertexBufferView_);
-    Singleton<CommandController>::getInstance()->getList().Get()->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    Singleton<CommandController>::getInstance()->getList().Get()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     Singleton<CommandController>::getInstance()->getList().Get()->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
     Singleton<CommandController>::getInstance()->getList().Get()->SetGraphicsRootConstantBufferView(1, transformationMatrixResource_->GetGPUVirtualAddress());
