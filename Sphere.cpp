@@ -23,32 +23,53 @@ void Sphere::Initialize() {
 	    for (uint32_t lonIndex = 0; lonIndex < SUBDIVISION; ++lonIndex){
             float lon = static_cast<float>(lonIndex) * LON_EVERY;
 
+            //lat(緯度/縦) = θ, lon(経度/横) = φ
+
             uint32_t startIndex = (latIndex * SUBDIVISION + lonIndex) * 6;
 
-            Vector4 a = {cosf(lat) * cosf(lon), sin(lat), cosf(lat) * sinf(lon), 1};
-            Vector4 b = {cosf(lat - LAT_EVERY) * cosf(lon), sinf(lat - LAT_EVERY), cosf(lat - LAT_EVERY) * sinf(lon),1};
-            Vector4 c = {cosf(lat) * cosf(lon + LON_EVERY), sinf(lat), cosf(lat) * sinf(lon + LON_EVERY), 1};
+            Vector4 a = {
+            	cosf(lat) * cosf(lon),
+            	sin(lat),
+            	cosf(lat) * sinf(lon),
+            	1
+            };
+            Vector4 b = {
+            	cosf(lat + LAT_EVERY) * cosf(lon),
+            	sinf(lat + LAT_EVERY),
+            	cosf(lat + LAT_EVERY) * sinf(lon),
+            	1
+            };
+            Vector4 c = {
+            	cosf(lat) * cosf(lon + LON_EVERY),
+            	sinf(lat),
+            	cosf(lat) * sinf(lon + LON_EVERY),
+            	1
+            };
             Vector4 d = {
-	            cosf(lat + LAT_EVERY) * cosf(lon + LON_EVERY), sinf(lat + LAT_EVERY),
-	            cosf(lat + LAT_EVERY) * sinf(lon + LON_EVERY),1
+	            cosf(lat + LAT_EVERY) * cosf(lon + LON_EVERY),
+            	sinf(lat + LAT_EVERY),
+	            cosf(lat + LAT_EVERY) * sinf(lon + LON_EVERY),
+            	1
             };
 
-            float u = static_cast<float>(lonIndex) / static_cast<float>(SUBDIVISION);
-            float v = 1.f - static_cast<float>(latIndex) / static_cast<float>(SUBDIVISION);
+            //基になる考え方
+            // u = x, v = y
+            //u = lonIndex / SUBDIVISION;
+            //v = 1.f - latIndex / SUBDIVISION;
 
             vertexData[startIndex].position = a;
-            vertexData[startIndex].texCoord = {u, v};
+            vertexData[startIndex].texCoord = {static_cast<float>(lonIndex) / static_cast<float>(SUBDIVISION), 1 - static_cast<float>(latIndex)/static_cast<float>(SUBDIVISION)};
             vertexData[++startIndex].position = b;
-            vertexData[startIndex].texCoord = {u, v};
+            vertexData[startIndex].texCoord = {static_cast<float>(lonIndex) / static_cast<float>(SUBDIVISION), 1 - static_cast<float>(latIndex + 1) / static_cast<float>(SUBDIVISION)};
             vertexData[++startIndex].position = c;
-            vertexData[startIndex].texCoord = {u, v};
+            vertexData[startIndex].texCoord = {static_cast<float>(lonIndex + 1) / static_cast<float>(SUBDIVISION), 1 - static_cast<float>(latIndex) / static_cast<float>(SUBDIVISION)};
 
             vertexData[++startIndex].position = c;
-            vertexData[startIndex].texCoord = {u, v};
+            vertexData[startIndex].texCoord = {static_cast<float>(lonIndex + 1) / static_cast<float>(SUBDIVISION), 1 - static_cast<float>(latIndex) / static_cast<float>(SUBDIVISION)};
             vertexData[++startIndex].position = b;
-            vertexData[startIndex].texCoord = {u, v};
+            vertexData[startIndex].texCoord = {static_cast<float>(lonIndex) / static_cast<float>(SUBDIVISION), 1 - static_cast<float>(latIndex + 1) / static_cast<float>(SUBDIVISION)};
             vertexData[++startIndex].position = d;
-            vertexData[startIndex].texCoord = {u, v};
+            vertexData[startIndex].texCoord = {static_cast<float>(lonIndex + 1) / static_cast<float>(SUBDIVISION), 1 - static_cast<float>(latIndex + 1) / static_cast<float>(SUBDIVISION)};
 	    }
     }
 
