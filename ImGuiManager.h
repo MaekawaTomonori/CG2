@@ -5,7 +5,14 @@
 class ImGuiManager : Singleton<ImGuiManager>{
     friend Singleton<ImGuiManager>;
 
-    std::queue<std::function<void()>> drawQueue_;
+    ImGuiManager() {
+        System::Debug::Log(System::Debug::ConvertString(L"ImGuiManager Enabled\n"));
+    }
+	~ImGuiManager() {
+        System::Debug::Log(System::Debug::ConvertString(L"ImGuiManager Disabled\n"));
+    }
+
+    //std::queue<std::function<void()>> drawQueue_;
 
 public:
 	//void Initialize();

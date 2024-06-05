@@ -5,9 +5,6 @@
 #include "MathUtils.h"
 #include "Shader.h"
 
-#include <rpc.h>
-
-#pragma comment(lib, "Rpcrt4.lib")
 //Triangle::~Triangle() {
 //    System::Debug::Log(System::Debug::ConvertString(L"[Triangle] : Delete\n"));
 //}
@@ -48,13 +45,6 @@ void Triangle::Initialize() {
     materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&color_));
     *color_ = {1,1,1,1};
 
-    UUID uuid;
-    UuidCreate(&uuid);
-    RPC_CSTR szUuid = nullptr;
-    UuidToStringA(&uuid, &szUuid);
-    uuid_ = (char*)szUuid;
-    RpcStringFreeA(&szUuid);
-
     System::Debug::Log(System::Debug::ConvertString(L"[Triangle] : Initialized!\n"));
 }
 
@@ -69,8 +59,8 @@ void Triangle::Update() {
     *transformationMatrixData = worldMatrix;
 
     //Triangle obj;
-    //Singleton<ImGuiManager>::getInstance()->AddQueue(std::bind(&Triangle::ImGuiDraw, &obj));
-    ImGuiDraw();
+    //Singleton<ImGuiManager>::getInstance()->AddQueue(std::bind(&Triangle::EditParameterByImGui, &obj));
+    EditParameterByImGui();
 }
 
 void Triangle::Draw() {
@@ -82,7 +72,7 @@ void Triangle::Draw() {
     Singleton<CommandController>::getInstance()->getList().Get()->DrawInstanced(3, 1, 0, 0);
 }
 
-void Triangle::ImGuiDraw() {
+void Triangle::EditParameterByImGui() {
 #ifdef _DEBUG
 	ImGui::Begin("Triangle");
 

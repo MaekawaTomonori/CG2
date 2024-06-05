@@ -10,7 +10,7 @@ public:
     void Initialize() override;
     void Update() override;
     void Draw() override;
-    void ImGuiDraw();
+    void EditParameterByImGui() override;
 
     void setTransform(const Transform& t) {
         transform_ = t;

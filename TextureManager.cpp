@@ -2,19 +2,56 @@
 
 #include "CommandController.h"
 #include "DeviceManager.h"
+#include "Heap.h"
 #include "Shader.h"
 #include "DirectXTex/d3dx12.h"
 
-Texture::Texture(const std::string& name, ID3D12DescriptorHeap* srvDescHeap) {
-    image_ = Singleton<TextureManager>::getInstance()->LoadTexture(name);
+Texture::Texture(const std::string& name, ID3D12DescriptorHeap* srvDescriptorHeap) {
+    image_ = LoadTexture(name);
     const DirectX::TexMetadata& metaData = image_.GetMetadata();
     textureResource_ = Singleton<TextureManager>::getInstance()->CreateTextureResource(metaData);
-    Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource = Singleton<TextureManager>::getInstance()->UploadTextureData(textureResource_.Get(), image_);
+    Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource = UploadTextureData(textureResource_.Get(), image_);
 
-    shaderResourceViewHandle_ = Singleton<TextureManager>::getInstance()->MakeSRV(metaData, srvDescHeap, Singleton<DeviceManager>::getInstance()->getDevice().Get(), textureResource_.Get());
+    shaderResourceViewHandle_ = MakeSRV(metaData, srvDescriptorHeap, textureResource_.Get());
 }
 
-DirectX::ScratchImage TextureManager::LoadTexture(const std::string& fileName) {
+std::shared_ptr<Texture> TextureManager::Load(const std::string& name, ID3D12DescriptorHeap* srvDescriptorHeap) {
+    //テクスチャが新規ロードされた場合、Mapに登録し、名前をリストに登録しておく。
+    //hashmapのkeyを全取得する関数を見つけられたら名前リストは解雇。
+    if (registeredTexturesMap_.try_emplace(name, new Texture(resourceFolderPath + name, srvDescriptorHeap)).second){
+        textureNameList_.push_back(name);
+    }
+    return registeredTexturesMap_.at(name);
+}
+
+std::unordered_map<std::string, std::shared_ptr<Texture>> TextureManager::GetRegisteredTextures() const {
+    return registeredTexturesMap_;
+}
+
+std::vector<std::string> TextureManager::getNameList() const {
+    return textureNameList_;
+}
+
+std::string TextureManager::EditPropertyByImGui(const std::string& name) const {
+    const char* currentItem = name.c_str();
+
+    if(ImGui::BeginCombo("Texture", currentItem)){
+        for (int n = 0; n < textureNameList_.size(); ++n){
+            bool isSelected = (currentItem == textureNameList_[n]);
+            if(ImGui::Selectable(textureNameList_[n].c_str()), isSelected){
+                currentItem = textureNameList_[n].c_str();
+            }
+            if(isSelected){
+                ImGui::SetItemDefaultFocus();
+            }
+	    }
+        ImGui::EndCombo();
+    }
+
+    return currentItem;
+}
+
+DirectX::ScratchImage Texture::LoadTexture(const std::string& fileName) {
     DirectX::ScratchImage image {};
     std::wstring filePathW = System::Debug::ConvertString(fileName);
 
@@ -76,7 +113,7 @@ ID3D12Resource* TextureManager::CreateTextureResource(const DirectX::TexMetadata
 
 //Attribute 返り値無視をユルサナイ属性。メンヘラメソッド。
 [[nodiscard]]
-ID3D12Resource* TextureManager::UploadTextureData(ID3D12Resource* texture, const DirectX::ScratchImage& mipImages) {
+ID3D12Resource* Texture::UploadTextureData(ID3D12Resource* texture, const DirectX::ScratchImage& mipImages) {
     std::vector<D3D12_SUBRESOURCE_DATA> subResources;
     DirectX::PrepareUpload(Singleton<DeviceManager>::getInstance()->getDevice().Get(), mipImages.GetImages(), mipImages.GetImageCount(), mipImages.GetMetadata(), subResources);
     uint32_t intermediateSize = (uint32_t)GetRequiredIntermediateSize(texture, 0, UINT(subResources.size()));
@@ -94,7 +131,7 @@ ID3D12Resource* TextureManager::UploadTextureData(ID3D12Resource* texture, const
     return intermediateResourse;
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE TextureManager::MakeSRV(const DirectX::TexMetadata& metadata, ID3D12DescriptorHeap* srvDescriptorHeap, ID3D12Device* device, ID3D12Resource* textureResource) {
+D3D12_GPU_DESCRIPTOR_HANDLE Texture::MakeSRV(const DirectX::TexMetadata& metadata, ID3D12DescriptorHeap* srvDescriptorHeap, ID3D12Resource* textureResource) const {
     //Setting SRV from metadata
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc {};
     srvDesc.Format = metadata.format;
@@ -103,11 +140,9 @@ D3D12_GPU_DESCRIPTOR_HANDLE TextureManager::MakeSRV(const DirectX::TexMetadata& 
     srvDesc.Texture2D.MipLevels = UINT(metadata.mipLevels);
 
     //decide where to place the descriptor heaps
-    D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU = srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-    D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU = srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
-    textureSrvHandleCPU.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-    textureSrvHandleGPU.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-    device->CreateShaderResourceView(textureResource, &srvDesc, textureSrvHandleCPU);
+    D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU = Heap::getCPUDescriptorHandle(srvDescriptorHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, (uint32_t)Singleton<TextureManager>::getInstance()->GetRegisteredTextures().size() + 1);
+    D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU = Heap::getGPUDescriptorHandle(srvDescriptorHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, (uint32_t)Singleton<TextureManager>::getInstance()->GetRegisteredTextures().size() + 1);
+    Singleton<DeviceManager>::getInstance()->getDevice().Get()->CreateShaderResourceView(textureResource, &srvDesc, textureSrvHandleCPU);
     return textureSrvHandleGPU;
 }
 

@@ -8,7 +8,8 @@ public:
 	void Update() override;
 	void Draw() override;
 
-	void Initialize(D3D12_GPU_DESCRIPTOR_HANDLE textureHandle);
+private:
+	void EditParameterByImGui() override;
 
 private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;

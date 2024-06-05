@@ -9,6 +9,15 @@ class CommandController : Singleton<CommandController>{
 
 	///Member
 private:
+
+	CommandController() {
+	    System::Debug::Log(System::Debug::ConvertString(L"CommandClass Init\n"));
+	}
+	~CommandController() {
+	    System::Debug::Log(System::Debug::ConvertString(L"CommandClass Delete\n"));
+	}
+
+
     //Queue
     Microsoft::WRL::ComPtr<ID3D12CommandQueue> queue_;
     D3D12_COMMAND_QUEUE_DESC queueDesc_{};

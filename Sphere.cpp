@@ -86,6 +86,8 @@ void Sphere::Initialize() {
 }
 
 void Sphere::Update() {
+    transform_.rotate.y += 0.003f;
+
     Matrix4x4 worldMatrix = MathUtils::Matrix::MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
     Matrix4x4 cameraMatrix = MathUtils::Matrix::MakeAffineMatrix(Camera.scale, Camera.rotate, Camera.translate);
 	Matrix4x4 viewMatrix = cameraMatrix.Inverse();
@@ -93,6 +95,8 @@ void Sphere::Update() {
     Matrix4x4 viewProjection = viewMatrix * projectionMatrix;
     Matrix4x4 wvp = worldMatrix * viewProjection;
     *transformationMatrixData = wvp;
+
+    EditParameterByImGui();
 }
 
 void Sphere::Draw() {
@@ -106,7 +110,20 @@ void Sphere::Draw() {
     Singleton<CommandController>::getInstance()->getList()->DrawInstanced(SUBDIVISION*SUBDIVISION*6, 1, 0, 0);
 }
 
-void Sphere::Initialize(D3D12_GPU_DESCRIPTOR_HANDLE textureHandle) {
-    textureHandle_ = textureHandle;
-    Initialize();
+void Sphere::EditParameterByImGui() {
+    #ifdef _DEBUG
+    ImGui::Begin("Sphere");
+
+    if (ImGui::TreeNode(uuid_.c_str())){
+        ImGui::SliderFloat3("rotate", &transform_.rotate.x, -10, 10);
+        ImGui::SliderFloat3("scale", &transform_.scale.x, 0, 3);
+        ImGui::SliderFloat3("translate", &transform_.translate.x, -2, 2);
+        ImGui::ColorEdit4("color", &color_->x);
+
+        changeTexture(Singleton<TextureManager>::getInstance()->EditPropertyByImGui(textureName_));
+
+        ImGui::TreePop();
+    }
+    ImGui::End();
+    #endif
 }
