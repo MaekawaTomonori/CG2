@@ -6,6 +6,7 @@
 #include "CommandController.h"
 #include "D3ResourceLeakChecker.h"
 #include "ImGuiManager.h"
+#include "Light.h"
 #include "Sphere.h"
 #include "Sprite.h"
 #include "Triangle.h"
@@ -234,7 +235,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     descriptionRootSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
     ///RootParameter
-    D3D12_ROOT_PARAMETER rootParameters[3] = { };
+    D3D12_ROOT_PARAMETER rootParameters[4] = { };
 
     //pixel shader
     rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
@@ -262,7 +263,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     rootParameters[2].DescriptorTable.pDescriptorRanges = descriptorRange;
     rootParameters[2].DescriptorTable.NumDescriptorRanges = _countof(descriptorRange);
 
-    descriptionRootSignature.pParameters = rootParameters;
+    //Lighting
+    rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    rootParameters[3].Descriptor.ShaderRegister = 1;
+
+	//Light
+    Singleton<Light>::getInstance()->registerDirectionalLight();
+
+	descriptionRootSignature.pParameters = rootParameters;
     descriptionRootSignature.NumParameters = _countof(rootParameters);
 
     //Sampler
@@ -293,7 +302,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     assert(SUCCEEDED(hResult));
 
     //InputLayout
-    D3D12_INPUT_ELEMENT_DESC inputElementDescs[2] = { };
+    D3D12_INPUT_ELEMENT_DESC inputElementDescs[3] = { };
     inputElementDescs[0].SemanticName = "POSITION";
     inputElementDescs[0].SemanticIndex = 0;
     inputElementDescs[0].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
@@ -303,6 +312,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     inputElementDescs[1].SemanticIndex = 0;
     inputElementDescs[1].Format = DXGI_FORMAT_R32G32_FLOAT;
     inputElementDescs[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+
+    inputElementDescs[2].SemanticName = "NORMAL";
+    inputElementDescs[2].SemanticIndex = 0;
+    inputElementDescs[2].Format = DXGI_FORMAT_R32G32B32_FLOAT;
+    inputElementDescs[2].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
 
     D3D12_INPUT_LAYOUT_DESC inputLayoutDesc {};
     inputLayoutDesc.pInputElementDescs = inputElementDescs;
@@ -393,8 +407,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     triangle2->Initialize();
     triangle2->setTransform({{1,1,1}, {0, MathUtils::F_PI /2.f, 0}, {0,0,0}});*/
 
-    //Sprite* sprite = new Sprite;
-    //sprite->Initialize(texture->GetHandle());
+    std::shared_ptr<Sprite> sprite = std::make_shared<Sprite>();
+	sprite->Initialize();
+    sprite->changeTexture("uvChecker.png");
 
     std::shared_ptr<Sphere> sphere = std::make_shared<Sphere>();
     sphere->Initialize();
@@ -426,36 +441,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
             sphere->Update();
 
-#ifdef _DEBUG
-            /*static ImGuiComboFlags flags = 0;
-            static int currentIndex = 0;
-            const char* items[] {"uvChecker", "MonsterBall"};
-        	const char* prev = items[currentIndex];
-            ImGui::Begin("Texture");
-            if(ImGui::BeginCombo("TextureID", prev, flags)){
-                for (int i = 0; i < IM_ARRAYSIZE(items); ++i){
-                    const bool isSelected = currentIndex == i;
-                    if(ImGui::Selectable(items[i], isSelected)){
-                        currentIndex = i;
-                        
-                    }
-                	if(isSelected){
-                        
-                        ImGui::SetItemDefaultFocus();
-                    }
-                	renderTexture = Singleton<TextureManager>::getInstance()->GetRegisteredTextures().at(items[currentIndex]);
-                }
-                ImGui::EndCombo();
-            }
-            ImGui::End();*/
-#endif
-
-            /*
-             * Sprite Update
-             */
-            //System::Debug::Log(System::Debug::ConvertString(L"[Sprite] : Updating\n"));
-        	//sprite->Update();
-            //System::Debug::Log(System::Debug::ConvertString(L"[Sprite] : Updated\n"));
+            sprite->Update();
 
             ///back/// Render
             Singleton<ImGuiManager>::getInstance()->End();
@@ -502,7 +488,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             sphere->Draw();
 
             //2D描画
-        	//sprite->Draw();
+        	sprite->Draw();
 
             //IMGUI RENDER
             Singleton<ImGuiManager>::getInstance()->Draw();

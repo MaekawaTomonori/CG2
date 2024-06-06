@@ -12,8 +12,9 @@ void Sphere::Initialize() {
     vertexBufferView_.StrideInBytes = sizeof(VertexData);
 
     materialResource_ = Shader::CreateBufferResource(Singleton<DeviceManager>::getInstance()->getDevice().Get(), sizeof(VertexData) * (SUBDIVISION * SUBDIVISION * 6));
-    materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&color_));
-    *color_ = {1,1,1,1};
+    materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&material_));
+    *material_.color = {1,1,1,1};
+	material_.enableLighting = true;
 
     VertexData* vertexData = nullptr;
     vertexResource_->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
@@ -59,17 +60,45 @@ void Sphere::Initialize() {
 
             vertexData[startIndex].position = a;
             vertexData[startIndex].texCoord = {static_cast<float>(lonIndex) / static_cast<float>(SUBDIVISION), 1 - static_cast<float>(latIndex)/static_cast<float>(SUBDIVISION)};
+
+            vertexData[startIndex].normal.x = vertexData[startIndex].position.x;
+            vertexData[startIndex].normal.y = vertexData[startIndex].position.y;
+            vertexData[startIndex].normal.z = vertexData[startIndex].position.z;
+
             vertexData[++startIndex].position = b;
             vertexData[startIndex].texCoord = {static_cast<float>(lonIndex) / static_cast<float>(SUBDIVISION), 1 - static_cast<float>(latIndex + 1) / static_cast<float>(SUBDIVISION)};
-            vertexData[++startIndex].position = c;
+
+            vertexData[startIndex].normal.x = vertexData[startIndex].position.x;
+            vertexData[startIndex].normal.y = vertexData[startIndex].position.y;
+            vertexData[startIndex].normal.z = vertexData[startIndex].position.z;
+
+	    	vertexData[++startIndex].position = c;
             vertexData[startIndex].texCoord = {static_cast<float>(lonIndex + 1) / static_cast<float>(SUBDIVISION), 1 - static_cast<float>(latIndex) / static_cast<float>(SUBDIVISION)};
+
+            vertexData[startIndex].normal.x = vertexData[startIndex].position.x;
+            vertexData[startIndex].normal.y = vertexData[startIndex].position.y;
+            vertexData[startIndex].normal.z = vertexData[startIndex].position.z;
 
             vertexData[++startIndex].position = c;
             vertexData[startIndex].texCoord = {static_cast<float>(lonIndex + 1) / static_cast<float>(SUBDIVISION), 1 - static_cast<float>(latIndex) / static_cast<float>(SUBDIVISION)};
-            vertexData[++startIndex].position = b;
+
+            vertexData[startIndex].normal.x = vertexData[startIndex].position.x;
+            vertexData[startIndex].normal.y = vertexData[startIndex].position.y;
+            vertexData[startIndex].normal.z = vertexData[startIndex].position.z;
+
+	    	vertexData[++startIndex].position = b;
             vertexData[startIndex].texCoord = {static_cast<float>(lonIndex) / static_cast<float>(SUBDIVISION), 1 - static_cast<float>(latIndex + 1) / static_cast<float>(SUBDIVISION)};
+
+            vertexData[startIndex].normal.x = vertexData[startIndex].position.x;
+            vertexData[startIndex].normal.y = vertexData[startIndex].position.y;
+            vertexData[startIndex].normal.z = vertexData[startIndex].position.z;
+
             vertexData[++startIndex].position = d;
             vertexData[startIndex].texCoord = {static_cast<float>(lonIndex + 1) / static_cast<float>(SUBDIVISION), 1 - static_cast<float>(latIndex + 1) / static_cast<float>(SUBDIVISION)};
+
+            vertexData[startIndex].normal.x = vertexData[startIndex].position.x;
+            vertexData[startIndex].normal.y = vertexData[startIndex].position.y;
+            vertexData[startIndex].normal.z = vertexData[startIndex].position.z;
 	    }
     }
 
@@ -79,22 +108,20 @@ void Sphere::Initialize() {
         {0,0,0}
     };
 
-    transformationMatrixResource_ = Shader::CreateBufferResource(Singleton<DeviceManager>::getInstance()->getDevice().Get(), sizeof(Matrix4x4));
-    transformationMatrixData = nullptr;
-    transformationMatrixResource_->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixData));
-    *transformationMatrixData = MathUtils::Matrix::MakeIdentity();
+    transformationMatrixResource_ = Shader::CreateBufferResource(Singleton<DeviceManager>::getInstance()->getDevice().Get(), sizeof(TransformationMatrix));
+    transformationMatrixResource_->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrix_));
+    transformationMatrix_.WVP = MathUtils::Matrix::MakeIdentity();
 }
 
 void Sphere::Update() {
     transform_.rotate.y += 0.003f;
 
-    Matrix4x4 worldMatrix = MathUtils::Matrix::MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
+    transformationMatrix_.World = MathUtils::Matrix::MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
     Matrix4x4 cameraMatrix = MathUtils::Matrix::MakeAffineMatrix(Camera.scale, Camera.rotate, Camera.translate);
 	Matrix4x4 viewMatrix = cameraMatrix.Inverse();
     Matrix4x4 projectionMatrix = MathUtils::Matrix::MakePerspectiveFovMatrix(0.45f, float(CLIENT_WIDTH)/float(CLIENT_HEIGHT), 0.1f, 100);
     Matrix4x4 viewProjection = viewMatrix * projectionMatrix;
-    Matrix4x4 wvp = worldMatrix * viewProjection;
-    *transformationMatrixData = wvp;
+    transformationMatrix_.WVP = transformationMatrix_.World * viewProjection;
 
     EditParameterByImGui();
 }
@@ -118,7 +145,7 @@ void Sphere::EditParameterByImGui() {
         ImGui::SliderFloat3("rotate", &transform_.rotate.x, -10, 10);
         ImGui::SliderFloat3("scale", &transform_.scale.x, 0, 3);
         ImGui::SliderFloat3("translate", &transform_.translate.x, -2, 2);
-        ImGui::ColorEdit4("color", &color_->x);
+        ImGui::ColorEdit4("color", &material_.color->x);
 
         changeTexture(Singleton<TextureManager>::getInstance()->EditPropertyByImGui(textureName_));
 

@@ -37,13 +37,13 @@ void Triangle::Initialize() {
     vertexData[2].position = {0.5f, -0.5f, 0, 1};
     vertexData[2].texCoord = {1, 1};
 
-    transformationMatrixResource_ = Shader::CreateBufferResource(Singleton<DeviceManager>::getInstance()->getDevice().Get(), sizeof(Matrix4x4));
-    transformationMatrixResource_->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixData));
-    *transformationMatrixData = MathUtils::Matrix::MakeIdentity();
+    transformationMatrixResource_ = Shader::CreateBufferResource(Singleton<DeviceManager>::getInstance()->getDevice().Get(), sizeof(TransformationMatrix));
+    transformationMatrixResource_->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrix_));
+    transformationMatrix_.WVP = MathUtils::Matrix::MakeIdentity();
 
     materialResource_ = Shader::CreateBufferResource(Singleton<DeviceManager>::getInstance()->getDevice().Get(), sizeof(VertexData) * 3);
-    materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&color_));
-    *color_ = {1,1,1,1};
+    materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&material_.color));
+    *material_.color = {1,1,1,1};
 
     System::Debug::Log(System::Debug::ConvertString(L"[Triangle] : Initialized!\n"));
 }
@@ -55,8 +55,8 @@ void Triangle::Update() {
     viewMatrix = cameraMatrix.Inverse();
     projectionMatrix = MathUtils::Matrix::MakePerspectiveFovMatrix(0.45f, static_cast<float>(CLIENT_HEIGHT) / static_cast<float>(CLIENT_WIDTH), 0.1f, 100.f);
     worldViewProjectionMatrix = worldMatrix * (viewMatrix * projectionMatrix);
-    *transformationMatrixData = worldViewProjectionMatrix;
-    *transformationMatrixData = worldMatrix;
+    transformationMatrix_.WVP = worldViewProjectionMatrix;
+    transformationMatrix_.World = worldMatrix;
 
     //Triangle obj;
     //Singleton<ImGuiManager>::getInstance()->AddQueue(std::bind(&Triangle::EditParameterByImGui, &obj));
@@ -80,7 +80,7 @@ void Triangle::EditParameterByImGui() {
         ImGui::SliderFloat3("rotate", &transform_.rotate.x, -10, 10);
         ImGui::SliderFloat3("scale", &transform_.scale.x, 0, 3);
         ImGui::SliderFloat3("translate", &transform_.translate.x, -2, 2);
-        ImGui::SliderFloat3("color", &color_->x, 0, 1);
+        ImGui::SliderFloat3("color", &material_.color->x, 0, 1);
 
         ImGui::TreePop();
     }

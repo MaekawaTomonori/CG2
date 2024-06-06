@@ -35,18 +35,24 @@ std::vector<std::string> TextureManager::getNameList() const {
 std::string TextureManager::EditPropertyByImGui(const std::string& name) const {
     const char* currentItem = name.c_str();
 
-    if(ImGui::BeginCombo("Texture", currentItem)){
-        for (int n = 0; n < textureNameList_.size(); ++n){
-            bool isSelected = (currentItem == textureNameList_[n]);
-            if(ImGui::Selectable(textureNameList_[n].c_str()), isSelected){
-                currentItem = textureNameList_[n].c_str();
-            }
-            if(isSelected){
-                ImGui::SetItemDefaultFocus();
-            }
-	    }
-        ImGui::EndCombo();
-    }
+    //int listSize = textureNameList_.size();
+
+    //int selectedIndex = -1;
+    //for (int i = 0; i < listSize; ++i){
+	   // if(name == textureNameList_[i]){
+    //        selectedIndex = i;
+    //        break;
+	   // }
+    //}
+
+    //const char* cArray[listSize];
+    //for (int i = 0; i < listSize; ++i){
+    //    cArray[i] = (textureNameList_[i].c_str());
+    //}
+
+    //if(ImGui::Combo("Texture", &selectedIndex, cArray, listSize, 5)){
+    //    currentItem = cArray[selectedIndex];
+    //}
 
     return currentItem;
 }
