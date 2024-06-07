@@ -24,6 +24,9 @@ class Light : Singleton<Light>{
 public:
     void registerDirectionalLight();
     Microsoft::WRL::ComPtr<ID3D12Resource> getDirectionalLight() {
-        return directionalLightResource_;
+	    return directionalLightResource_;
+    }
+    DirectionalLight* getDirectionalLightData() const {
+        return directionalLight_;
     }
 };

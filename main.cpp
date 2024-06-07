@@ -271,7 +271,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//Light
     Singleton<Light>::getInstance()->registerDirectionalLight();
     std::weak_ptr<Light> weak(Singleton<Light>::getInstance());
-    assert(weak.expired());
 
 	descriptionRootSignature.pParameters = rootParameters;
     descriptionRootSignature.NumParameters = _countof(rootParameters);
@@ -431,15 +430,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #ifdef _DEBUG
             ImGui::ShowDemoWindow();
-#endif
 
-            /*
-             * Triangle Update
-             */
-            //System::Debug::Log(System::Debug::ConvertString(L"[Triangle] : Updating...\n"));
-            //triangle->Update();
-            //triangle2->Update();
-            //System::Debug::Log(System::Debug::ConvertString(L"[Triangle] : Updated\n"));
+            ImGui::Begin("Lighting");
+            ImGui::DragFloat3("Direction", &Singleton<Light>::getInstance()->getDirectionalLightData()->direction.x, 0.01f);
+            ImGui::End();
+
+            Singleton<Light>::getInstance()->getDirectionalLightData()->direction.normalize();
+#endif
 
             sphere->Update();
 
@@ -490,7 +487,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             sphere->Draw();
 
             //2D描画
-        	sprite->Draw();
+        	//sprite->Draw();
 
             //IMGUI RENDER
             Singleton<ImGuiManager>::getInstance()->Draw();
