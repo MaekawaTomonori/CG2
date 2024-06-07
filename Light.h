@@ -11,6 +11,7 @@ class Light : Singleton<Light>{
     friend Singleton <Light>;
 
     Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource_;
+    DirectionalLight* directionalLight_;
 
     Light() {
         System::Debug::Log(System::Debug::ConvertString(L"Light Enabled\n"));

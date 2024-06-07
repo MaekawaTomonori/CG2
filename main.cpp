@@ -270,6 +270,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	//Light
     Singleton<Light>::getInstance()->registerDirectionalLight();
+    std::weak_ptr<Light> weak(Singleton<Light>::getInstance());
+    assert(weak.expired());
 
 	descriptionRootSignature.pParameters = rootParameters;
     descriptionRootSignature.NumParameters = _countof(rootParameters);

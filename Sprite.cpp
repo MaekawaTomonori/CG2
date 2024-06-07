@@ -48,19 +48,19 @@ void Sprite::Initialize() {
     materialResource_ = Shader::CreateBufferResource(Singleton<DeviceManager>::getInstance()->getDevice(), sizeof(Material));
     //color
     materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&material_));
-    *material_.color = {1,1,1,1};
+    material_->color = {1,1,1,1};
     //Lightingを無効化
-    material_.enableLighting = false;
+    material_->enableLighting = false;
 
     transformationMatrixResource_ = Shader::CreateBufferResource(Singleton<DeviceManager>::getInstance()->getDevice().Get(), sizeof(TransformationMatrix));
     
     transformationMatrixResource_->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrix_));
-    transformationMatrix_.WVP = MathUtils::Matrix::MakeIdentity();
-    transformationMatrix_.World = MathUtils::Matrix::MakeIdentity();
+    transformationMatrix_->WVP = MathUtils::Matrix::MakeIdentity();
+    transformationMatrix_->World = MathUtils::Matrix::MakeIdentity();
 
     transform_ = {{1,1,1,}, {0,0,0},{0,0,0}};
-    transformationMatrix_.World = MathUtils::Matrix::MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
-    transformationMatrix_.WVP = transformationMatrix_.World * MathUtils::Matrix::MakeIdentity() * MathUtils::Matrix::MakeOrthogonalMatrix(0, float(CLIENT_WIDTH), 0, float(CLIENT_HEIGHT), 0, 100);
+    transformationMatrix_->World = MathUtils::Matrix::MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
+    transformationMatrix_->WVP = transformationMatrix_->World * MathUtils::Matrix::MakeIdentity() * MathUtils::Matrix::MakeOrthogonalMatrix(0, float(CLIENT_WIDTH), 0, float(CLIENT_HEIGHT), 0, 100);
 
     System::Debug::Log(System::Debug::ConvertString(L"[Sprite] : Initialized!\n"));
 }
@@ -77,11 +77,11 @@ void Sprite::Update() {
     /*
      * Update
      */
-	transformationMatrix_.World = MathUtils::Matrix::MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
+	transformationMatrix_->World = MathUtils::Matrix::MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
     Matrix4x4 viewMatrix = MathUtils::Matrix::MakeIdentity();
     Matrix4x4 projectionMatrix = MathUtils::Matrix::MakeOrthogonalMatrix(0, float(CLIENT_WIDTH), 0, float(CLIENT_HEIGHT), 0.1f, 100.f);
-    Matrix4x4 worldViewProjectionMatrix = transformationMatrix_.World * (viewMatrix * projectionMatrix);
-    transformationMatrix_.WVP = worldViewProjectionMatrix;
+    Matrix4x4 worldViewProjectionMatrix = transformationMatrix_->World * (viewMatrix * projectionMatrix);
+    transformationMatrix_->WVP = worldViewProjectionMatrix;
 }
 
 void Sprite::Draw() {
@@ -103,7 +103,7 @@ void Sprite::Initialize(D3D12_GPU_DESCRIPTOR_HANDLE textureHandle) {
 }
 
 void Sprite::Initialize(Color& color) {
-	this->material_.color = &color;
+	this->material_->color = color;
     Initialize();
 }
 

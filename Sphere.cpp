@@ -2,6 +2,7 @@
 
 #include "CommandController.h"
 #include "DeviceManager.h"
+#include "Light.h"
 #include "Shader.h"
 
 void Sphere::Initialize() {
@@ -11,10 +12,10 @@ void Sphere::Initialize() {
     vertexBufferView_.SizeInBytes = sizeof(VertexData) * (SUBDIVISION * SUBDIVISION * 6);
     vertexBufferView_.StrideInBytes = sizeof(VertexData);
 
-    materialResource_ = Shader::CreateBufferResource(Singleton<DeviceManager>::getInstance()->getDevice().Get(), sizeof(VertexData) * (SUBDIVISION * SUBDIVISION * 6));
+    materialResource_ = Shader::CreateBufferResource(Singleton<DeviceManager>::getInstance()->getDevice().Get(), sizeof(Material));
     materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&material_));
-    *material_.color = {1,1,1,1};
-	material_.enableLighting = true;
+    material_->color = {1,1,1,1};
+	material_->enableLighting = true;
 
     VertexData* vertexData = nullptr;
     vertexResource_->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
@@ -110,18 +111,18 @@ void Sphere::Initialize() {
 
     transformationMatrixResource_ = Shader::CreateBufferResource(Singleton<DeviceManager>::getInstance()->getDevice().Get(), sizeof(TransformationMatrix));
     transformationMatrixResource_->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrix_));
-    transformationMatrix_.WVP = MathUtils::Matrix::MakeIdentity();
+    transformationMatrix_->WVP = MathUtils::Matrix::MakeIdentity();
 }
 
 void Sphere::Update() {
     transform_.rotate.y += 0.003f;
 
-    transformationMatrix_.World = MathUtils::Matrix::MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
+    transformationMatrix_->World = MathUtils::Matrix::MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
     Matrix4x4 cameraMatrix = MathUtils::Matrix::MakeAffineMatrix(Camera.scale, Camera.rotate, Camera.translate);
 	Matrix4x4 viewMatrix = cameraMatrix.Inverse();
     Matrix4x4 projectionMatrix = MathUtils::Matrix::MakePerspectiveFovMatrix(0.45f, float(CLIENT_WIDTH)/float(CLIENT_HEIGHT), 0.1f, 100);
     Matrix4x4 viewProjection = viewMatrix * projectionMatrix;
-    transformationMatrix_.WVP = transformationMatrix_.World * viewProjection;
+    transformationMatrix_->WVP = transformationMatrix_->World * viewProjection;
 
     EditParameterByImGui();
 }
@@ -131,6 +132,7 @@ void Sphere::Draw() {
     Singleton<CommandController>::getInstance()->getList().Get()->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
     Singleton<CommandController>::getInstance()->getList().Get()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	Singleton<CommandController>::getInstance()->getList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResource_->GetGPUVirtualAddress());
+    Singleton<CommandController>::getInstance()->getList()->SetGraphicsRootConstantBufferView(3, Singleton<Light>::getInstance()->getDirectionalLight()->GetGPUVirtualAddress());
     if (textureHandle_){
     	Singleton<CommandController>::getInstance()->getList()->SetGraphicsRootDescriptorTable(2, textureHandle_.get_value());
     }
@@ -145,7 +147,7 @@ void Sphere::EditParameterByImGui() {
         ImGui::SliderFloat3("rotate", &transform_.rotate.x, -10, 10);
         ImGui::SliderFloat3("scale", &transform_.scale.x, 0, 3);
         ImGui::SliderFloat3("translate", &transform_.translate.x, -2, 2);
-        ImGui::ColorEdit4("color", &material_.color->x);
+        ImGui::ColorEdit4("color", &material_->color.x);
 
         changeTexture(Singleton<TextureManager>::getInstance()->EditPropertyByImGui(textureName_));
 

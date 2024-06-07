@@ -18,7 +18,7 @@ typedef Vector4 Color;
 
 struct Material{
     //初期値は白 リソースにマッピングするので生ぽでOK
-    Color* color;
+    Color color;
     int32_t enableLighting;
 };
 
@@ -37,7 +37,9 @@ protected:
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource_;
     Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResource_;
     //リソースにマップするもの
-    TransformationMatrix transformationMatrix_;
+    TransformationMatrix* transformationMatrix_ = nullptr;
+    Material* material_ = nullptr;
+
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView_{};
     Transform transform_{};
 
@@ -45,7 +47,6 @@ protected:
     std::string textureName_;
     nullable<D3D12_GPU_DESCRIPTOR_HANDLE> textureHandle_;
 
-    Material material_{};
 
     //識別
     std::string uuid_{};
