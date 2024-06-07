@@ -6,11 +6,20 @@
 #include "Shader.h"
 
 void Sphere::Initialize() {
-    vertexResource_ = Shader::CreateBufferResource(Singleton<DeviceManager>::getInstance()->getDevice().Get(), sizeof(VertexData) * SUBDIVISION * SUBDIVISION * 6);
+    vertexResource_.Attach(Shader::CreateBufferResource(Singleton<DeviceManager>::getInstance()->getDevice().Get(), sizeof(VertexData) * SUBDIVISION * SUBDIVISION * 6));
 
     vertexBufferView_.BufferLocation = vertexResource_->GetGPUVirtualAddress();
     vertexBufferView_.SizeInBytes = sizeof(VertexData) * (SUBDIVISION * SUBDIVISION * 6);
     vertexBufferView_.StrideInBytes = sizeof(VertexData);
+
+    indexResource_.Attach(Shader::CreateBufferResource(Singleton<DeviceManager>::getInstance()->getDevice(), sizeof(uint32_t) * SUBDIVISION * SUBDIVISION * 6));
+
+    indexBufferView_.BufferLocation = indexResource_->GetGPUVirtualAddress();
+    indexBufferView_.SizeInBytes = sizeof(uint32_t) * SUBDIVISION * SUBDIVISION * 6;
+    indexBufferView_.Format = DXGI_FORMAT_R32_UINT;
+
+    uint32_t* indexData = nullptr;
+    indexResource_->Map(0, nullptr, reinterpret_cast<void**>(&indexData));
 
     materialResource_ = Shader::CreateBufferResource(Singleton<DeviceManager>::getInstance()->getDevice().Get(), sizeof(Material));
     materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&material_));
@@ -59,12 +68,16 @@ void Sphere::Initialize() {
             //u = lonIndex / SUBDIVISION;
             //v = 1.f - latIndex / SUBDIVISION;
 
+            //abc cbd
+
             vertexData[startIndex].position = a;
             vertexData[startIndex].texCoord = {static_cast<float>(lonIndex) / static_cast<float>(SUBDIVISION), 1 - static_cast<float>(latIndex)/static_cast<float>(SUBDIVISION)};
 
             vertexData[startIndex].normal.x = vertexData[startIndex].position.x;
             vertexData[startIndex].normal.y = vertexData[startIndex].position.y;
             vertexData[startIndex].normal.z = vertexData[startIndex].position.z;
+
+            indexData[startIndex] = startIndex;
 
             vertexData[++startIndex].position = b;
             vertexData[startIndex].texCoord = {static_cast<float>(lonIndex) / static_cast<float>(SUBDIVISION), 1 - static_cast<float>(latIndex + 1) / static_cast<float>(SUBDIVISION)};
@@ -73,12 +86,16 @@ void Sphere::Initialize() {
             vertexData[startIndex].normal.y = vertexData[startIndex].position.y;
             vertexData[startIndex].normal.z = vertexData[startIndex].position.z;
 
+            indexData[startIndex] = startIndex;
+
 	    	vertexData[++startIndex].position = c;
             vertexData[startIndex].texCoord = {static_cast<float>(lonIndex + 1) / static_cast<float>(SUBDIVISION), 1 - static_cast<float>(latIndex) / static_cast<float>(SUBDIVISION)};
 
             vertexData[startIndex].normal.x = vertexData[startIndex].position.x;
             vertexData[startIndex].normal.y = vertexData[startIndex].position.y;
             vertexData[startIndex].normal.z = vertexData[startIndex].position.z;
+
+            indexData[startIndex] = startIndex;
 
             vertexData[++startIndex].position = c;
             vertexData[startIndex].texCoord = {static_cast<float>(lonIndex + 1) / static_cast<float>(SUBDIVISION), 1 - static_cast<float>(latIndex) / static_cast<float>(SUBDIVISION)};
@@ -87,6 +104,8 @@ void Sphere::Initialize() {
             vertexData[startIndex].normal.y = vertexData[startIndex].position.y;
             vertexData[startIndex].normal.z = vertexData[startIndex].position.z;
 
+            indexData[startIndex] = startIndex - 1;
+
 	    	vertexData[++startIndex].position = b;
             vertexData[startIndex].texCoord = {static_cast<float>(lonIndex) / static_cast<float>(SUBDIVISION), 1 - static_cast<float>(latIndex + 1) / static_cast<float>(SUBDIVISION)};
 
@@ -94,12 +113,16 @@ void Sphere::Initialize() {
             vertexData[startIndex].normal.y = vertexData[startIndex].position.y;
             vertexData[startIndex].normal.z = vertexData[startIndex].position.z;
 
+            indexData[startIndex] = startIndex - 3;
+
             vertexData[++startIndex].position = d;
             vertexData[startIndex].texCoord = {static_cast<float>(lonIndex + 1) / static_cast<float>(SUBDIVISION), 1 - static_cast<float>(latIndex + 1) / static_cast<float>(SUBDIVISION)};
 
             vertexData[startIndex].normal.x = vertexData[startIndex].position.x;
             vertexData[startIndex].normal.y = vertexData[startIndex].position.y;
             vertexData[startIndex].normal.z = vertexData[startIndex].position.z;
+
+            indexData[startIndex] = startIndex;
 	    }
     }
 
@@ -129,6 +152,8 @@ void Sphere::Update() {
 
 void Sphere::Draw() {
 	Singleton<CommandController>::getInstance()->getList()->IASetVertexBuffers(0, 1, &vertexBufferView_);
+    Singleton<CommandController>::getInstance()->getList()->IASetIndexBuffer(&indexBufferView_);
+
     Singleton<CommandController>::getInstance()->getList().Get()->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
     Singleton<CommandController>::getInstance()->getList().Get()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	Singleton<CommandController>::getInstance()->getList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResource_->GetGPUVirtualAddress());
