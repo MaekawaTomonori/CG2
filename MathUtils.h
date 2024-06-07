@@ -4,6 +4,8 @@ namespace MathUtils{
     const double PI = 3.14159265358979323846264338327950288;
 
     namespace Matrix {
+        Matrix3x3 MakeIdentity3x3();
+
         Matrix4x4 MakeIdentity();
         Matrix4x4 MakeTranslateMatrix(const Vector3& velocity);
         Matrix4x4 MakeScaleMatrix(const Vector3& scale);

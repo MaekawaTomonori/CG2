@@ -66,6 +66,13 @@ void Sprite::Initialize() {
     material_->color = {1,1,1,1};
     //Lightingを無効化
     material_->enableLighting = false;
+    material_->uvTransform = MathUtils::Matrix::MakeIdentity();
+
+    uvTransform_ = {
+        1,1,1,
+        0,0,0,
+        0,0,0
+    };
 
     transformationMatrixResource_ = Shader::CreateBufferResource(Singleton<DeviceManager>::getInstance()->getDevice().Get(), sizeof(TransformationMatrix));
     
@@ -84,10 +91,7 @@ void Sprite::Update() {
     /*
      * ImGui
      */
-
-    /*ImGui::Begin("SpriteDebug");
-    ImGui::SliderFloat4("Color", &color_->x, 0, 1);
-    ImGui::End();*/
+    EditParameterByImGui();
 
     /*
      * Update
@@ -97,6 +101,12 @@ void Sprite::Update() {
     Matrix4x4 projectionMatrix = MathUtils::Matrix::MakeOrthogonalMatrix(0, float(CLIENT_WIDTH), 0, float(CLIENT_HEIGHT), 0.1f, 100.f);
     Matrix4x4 worldViewProjectionMatrix = transformationMatrix_->World * (viewMatrix * projectionMatrix);
     transformationMatrix_->WVP = worldViewProjectionMatrix;
+
+    Matrix4x4 uvMatrix = MathUtils::Matrix::MakeScaleMatrix(uvTransform_.scale);
+    uvMatrix = uvMatrix * MathUtils::Matrix::MakeRotateZ(uvTransform_.rotate.z);
+    uvMatrix = uvMatrix * MathUtils::Matrix::MakeTranslateMatrix(uvTransform_.translate);
+
+    material_->uvTransform = uvMatrix;
 }
 
 void Sprite::Draw() {
@@ -124,4 +134,9 @@ void Sprite::Initialize(Color& color) {
 }
 
 void Sprite::EditParameterByImGui() {
+    ImGui::Begin("Sprite");
+    ImGui::DragFloat2("uvTranslate", &uvTransform_.translate.x, 0.01f);
+    ImGui::DragFloat2("uvScale", &uvTransform_.scale.x, 0.01f);
+    ImGui::SliderAngle("uvRotate", &uvTransform_.rotate.z);
+    ImGui::End();
 }

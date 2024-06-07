@@ -5,6 +5,8 @@
 
 #include <rpc.h>
 
+#include "Matrix.h"
+
 #pragma comment(lib, "Rpcrt4.lib")
 
 //struct Color{
@@ -20,6 +22,8 @@ struct Material{
     //初期値は白 リソースにマッピングするので生ぽでOK
     Color color;
     int32_t enableLighting;
+    float padding[3];
+    Matrix4x4 uvTransform;
 };
 
 struct TransformationMatrix{

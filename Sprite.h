@@ -5,6 +5,8 @@ class Sprite :
     public Object{
 
     Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
+
+	Transform uvTransform_{};
 public:
     void Initialize() override;
     void Update() override;

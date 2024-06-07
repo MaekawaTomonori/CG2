@@ -25,6 +25,7 @@ void Sphere::Initialize() {
     materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&material_));
     material_->color = {1,1,1,1};
 	material_->enableLighting = true;
+    material_->uvTransform = MathUtils::Matrix::MakeIdentity();
 
     VertexData* vertexData = nullptr;
     vertexResource_->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));

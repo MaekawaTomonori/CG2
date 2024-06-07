@@ -1,4 +1,9 @@
 ﻿#pragma once
+
+struct Matrix3x3{
+    float matrix[3][3];
+};
+
 struct Matrix4x4{
     float matrix[4][4];
 

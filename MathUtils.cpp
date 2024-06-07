@@ -1,5 +1,13 @@
 #include "MathUtils.h"
 
+Matrix3x3 MathUtils::Matrix::MakeIdentity3x3() {
+    return Matrix3x3 {
+        1,0,0,
+        0,1,0,
+        0,0,1
+    };
+}
+
 Matrix4x4 MathUtils::Matrix::MakeIdentity() {
     return Matrix4x4{
         1,0,0,0,
