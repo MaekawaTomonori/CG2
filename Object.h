@@ -36,12 +36,16 @@ class Object{
 protected:
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource_;
     Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResource_;
+    Microsoft::WRL::ComPtr<ID3D12Resource> indexResource_;
+
     //リソースにマップするもの
     TransformationMatrix* transformationMatrix_ = nullptr;
     Material* material_ = nullptr;
 
-    D3D12_VERTEX_BUFFER_VIEW vertexBufferView_{};
     Transform transform_{};
+
+    D3D12_VERTEX_BUFFER_VIEW vertexBufferView_{};
+    D3D12_INDEX_BUFFER_VIEW indexBufferView_ {};
 
     //なにも指定されなかった場合White1x1が入る設定にする
     std::string textureName_;

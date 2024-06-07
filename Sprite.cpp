@@ -45,6 +45,21 @@ void Sprite::Initialize() {
     vertexData[5].texCoord = {1,1};
     vertexData[5].normal = {0, 0, -1};
 
+    indexResource_.Attach(Shader::CreateBufferResource(Singleton<DeviceManager>::getInstance()->getDevice().Get(), sizeof(uint32_t) * 6));
+
+    indexBufferView_.BufferLocation = indexResource_->GetGPUVirtualAddress();
+    indexBufferView_.SizeInBytes = sizeof(uint32_t) * 6;
+    indexBufferView_.Format = DXGI_FORMAT_R32_UINT;
+
+    uint32_t* indexData = nullptr;
+    indexResource_->Map(0, nullptr, reinterpret_cast<void**>(&indexData));
+    indexData[0] = 0;
+    indexData[1] = 1;
+    indexData[2] = 2;
+    indexData[3] = 1;
+    indexData[4] = 3;
+    indexData[5] = 2;
+
     materialResource_ = Shader::CreateBufferResource(Singleton<DeviceManager>::getInstance()->getDevice(), sizeof(Material));
     //color
     materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&material_));
@@ -86,6 +101,7 @@ void Sprite::Update() {
 
 void Sprite::Draw() {
     Singleton<CommandController>::getInstance()->getList()->IASetVertexBuffers(0, 1, &vertexBufferView_);
+    Singleton<CommandController>::getInstance()->getList()->IASetIndexBuffer(&indexBufferView_);
 
     Singleton<CommandController>::getInstance()->getList()->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
     Singleton<CommandController>::getInstance()->getList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResource_->GetGPUVirtualAddress());

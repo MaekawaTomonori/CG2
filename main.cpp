@@ -487,7 +487,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             sphere->Draw();
 
             //2D描画
-        	//sprite->Draw();
+        	sprite->Draw();
 
             //IMGUI RENDER
             Singleton<ImGuiManager>::getInstance()->Draw();
