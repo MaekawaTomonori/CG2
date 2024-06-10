@@ -7,6 +7,7 @@
 #include "D3ResourceLeakChecker.h"
 #include "ImGuiManager.h"
 #include "Light.h"
+#include "Model.h"
 #include "Sphere.h"
 #include "Sprite.h"
 #include "Triangle.h"
@@ -408,13 +409,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     triangle2->Initialize();
     triangle2->setTransform({{1,1,1}, {0, MathUtils::F_PI /2.f, 0}, {0,0,0}});*/
 
-    std::shared_ptr<Sprite> sprite = std::make_shared<Sprite>();
-	sprite->Initialize();
-    sprite->changeTexture("uvChecker.png");
+    //std::shared_ptr<Sprite> sprite = std::make_shared<Sprite>();
+	//sprite->Initialize();
+    //sprite->changeTexture("uvChecker.png");
 
-    std::shared_ptr<Sphere> sphere = std::make_shared<Sphere>();
-    sphere->Initialize();
-    sphere->changeTexture("monsterBall.png");
+    //std::shared_ptr<Sphere> sphere = std::make_shared<Sphere>();
+    //sphere->Initialize();
+    //sphere->changeTexture("monsterBall.png");
+
+    std::shared_ptr<Model> model = std::make_shared<Model>();
+    model->Initialize("Resources", "plane.obj");
 
     ///MainLoop
     MSG msg {};
@@ -438,9 +442,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             Singleton<Light>::getInstance()->getDirectionalLightData()->direction.normalize();
 #endif
 
-            sphere->Update();
+            //sphere->Update();
 
-            sprite->Update();
+            //sprite->Update();
 
             ///back/// Render
             Singleton<ImGuiManager>::getInstance()->End();
@@ -484,10 +488,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             //triangle->Draw();
             //triangle2->Draw();
 
-            sphere->Draw();
+            //sphere->Draw();
+
+            model->Draw();
 
             //2D描画
-        	sprite->Draw();
+        	//sprite->Draw();
 
             //IMGUI RENDER
             Singleton<ImGuiManager>::getInstance()->Draw();

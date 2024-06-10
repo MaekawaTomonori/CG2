@@ -3,9 +3,6 @@
 #ifndef SINGLETON_H
 #define SINGLETON_H
 
-#include <memory>
-#include <mutex>
-
 template<typename T>
 class Singleton{
 private:
