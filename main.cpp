@@ -6,11 +6,22 @@
 #include <dxgi1_6.h>
 #include <cassert>
 #include <wrl/client.h>
+#include <dxgidebug.h>
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "dxguid.lib")
 
-
+struct D3DLeakChecker{
+	~D3DLeakChecker() {
+        Microsoft::WRL::ComPtr<IDXGIDebug1> debug;
+        if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&debug)))){
+            debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
+            debug->ReportLiveObjects(DXGI_DEBUG_APP, DXGI_DEBUG_RLO_ALL);
+            debug->ReportLiveObjects(DXGI_DEBUG_D3D12, DXGI_DEBUG_RLO_ALL);
+        }
+	}
+};
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg){
@@ -63,6 +74,8 @@ const int32_t kClientWidth = 1280;
 const int32_t kClientHeight = 720;
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
+    D3DLeakChecker leakChecker;
+
     //Registering Window Class
     WNDCLASS wc {};
 
@@ -216,7 +229,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     hr = swapChain->GetBuffer(0, IID_PPV_ARGS(&swapChainResources[0]));
     assert(SUCCEEDED(hr));
 
-    hr = swapChain->GetBuffer(0, IID_PPV_ARGS(&swapChainResources[0]));
+    hr = swapChain->GetBuffer(1, IID_PPV_ARGS(&swapChainResources[1]));
     assert(SUCCEEDED(hr));
 
     D3D12_RENDER_TARGET_VIEW_DESC rtvDesc {};
@@ -292,6 +305,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             assert(SUCCEEDED(hr));
         }
     }
+
+    CloseHandle(fenceEvent);
+    CloseWindow(hwnd);
+
 
     return 0;
 }
