@@ -231,6 +231,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     rtvHandles[1].ptr = rtvStartHandle.ptr + device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     device->CreateRenderTargetView(swapChainResources[1].Get(), &rtvDesc, rtvHandles[1]);
 
+    Microsoft::WRL::ComPtr<ID3D12Fence> fence = nullptr;
+    uint64_t fenceValue = 0;
+    hr = device->CreateFence(fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
+    assert(SUCCEEDED(hr));
+
+    HANDLE fenceEvent = CreateEvent(nullptr, false, false, nullptr);
+    assert(fenceEvent != nullptr);
 
     MSG msg {};
     while(msg.message != WM_QUIT){
@@ -241,10 +248,26 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             //do somethings...//
 
             UINT bbi = swapChain->GetCurrentBackBufferIndex();
+
+            D3D12_RESOURCE_BARRIER barrier {};
+            barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+            barrier.Transition.pResource = swapChainResources[bbi].Get();
+            barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+            barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+
+            commandList->ResourceBarrier(1, &barrier);
+
             commandList->OMSetRenderTargets(1, &rtvHandles[bbi], false, nullptr);
 
             float color[4] = {0.1f, 0.25f, 0.5f, 1};
             commandList->ClearRenderTargetView(rtvHandles[bbi], color, 0, nullptr);
+
+
+            barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+            barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+
+            commandList->ResourceBarrier(1, &barrier);
 
             hr = commandList->Close();
             assert(SUCCEEDED(hr));
@@ -253,6 +276,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             commandQueue->ExecuteCommandLists(1, commandLists->GetAddressOf());
 
             swapChain->Present(1, 0);
+
+            ++fenceValue;
+            commandQueue->Signal(fence.Get(), fenceValue);
+
+            if (fence->GetCompletedValue() < fenceValue){
+                fence->SetEventOnCompletion(fenceValue, fenceEvent);
+                WaitForSingleObject(fenceEvent, INFINITE);
+            }
 
             hr = commandAllocator.Get()->Reset();
             assert(SUCCEEDED(hr));
