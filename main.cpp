@@ -9,6 +9,9 @@
 #include <dxgidebug.h>
 #include <dxcapi.h>
 
+#include "MathUtils.h"
+#include "Matrix.h"
+#include "Transform.h"
 #include "Vector4.h"
 
 #pragma comment(lib, "d3d12.lib")
@@ -22,6 +25,10 @@ struct VertexData{
 
 struct Material{
     Vector4 color;
+};
+
+struct TransformationMatrix{
+    Matrix4x4 WVP;
 };
 
 struct D3DLeakChecker{
@@ -165,6 +172,12 @@ ID3D12Resource* CreateBufferResource(ID3D12Device* device, size_t sizeInBytes) {
 //Rect
 const int32_t kClientWidth = 1280;
 const int32_t kClientHeight = 720;
+
+Transform Camera {
+    {1,1,1},
+    {0,0,0},
+    {0,0,-5}
+};
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     D3DLeakChecker leakChecker;
@@ -377,10 +390,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     descriptionRootSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
     //RootParameter
-    D3D12_ROOT_PARAMETER rootParameter[1] = {};
-    rootParameter[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    D3D12_ROOT_PARAMETER rootParameter[2] = {};
+    //Color
+	rootParameter[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     rootParameter[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
     rootParameter[0].Descriptor.ShaderRegister = 0;
+    //Transform
+    rootParameter[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rootParameter[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+    rootParameter[1].Descriptor.ShaderRegister = 0;
 
     descriptionRootSignature.pParameters = rootParameter;
     descriptionRootSignature.NumParameters = _countof(rootParameter);
@@ -463,11 +481,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     scissorRect.top = 0;
     scissorRect.bottom = kClientHeight;
 
+#pragma region Triangle
     //Triangle
     Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = nullptr;
     vertexResource.Attach(CreateBufferResource(device.Get(), sizeof(VertexData) * 3));
     Microsoft::WRL::ComPtr<ID3D12Resource> materialResource = nullptr;
     materialResource.Attach(CreateBufferResource(device.Get(), sizeof(Material)));
+    Microsoft::WRL::ComPtr<ID3D12Resource> transformationResource = nullptr;
+    transformationResource.Attach(CreateBufferResource(device.Get(), sizeof(TransformationMatrix)));
 
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView {};
     vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
@@ -482,8 +503,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     Material* materialData = nullptr;
     materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
-
     materialData->color = {1, 0, 0, 1};
+
+    TransformationMatrix* transformationData = nullptr;
+    transformationResource->Map(0, nullptr, reinterpret_cast<void**>(&transformationData));
+    transformationData->WVP = MathUtils::Matrix::MakeIdentity();
+
+    Transform transform {
+        {1,1,1},
+        {0,0,0},
+        {0,0,0}
+    };
+#pragma endregion
 
     MSG msg {};
     while(msg.message != WM_QUIT){
@@ -492,6 +523,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             DispatchMessage(&msg);
         }else{
             //do somethings...//
+
+#pragma region Update
+            transform.rotate.y += 0.03f;
+            Matrix4x4 cameraMatrix = MathUtils::Matrix::MakeAffineMatrix(Camera.scale, Camera.rotate, Camera.translate);
+            Matrix4x4 viewMatrix = cameraMatrix.Inverse();
+            Matrix4x4 projectionMatrix = MathUtils::Matrix::MakePerspectiveFovMatrix(0.45f, float(kClientWidth) / float(kClientHeight), 0.1f, 100);
+            Matrix4x4 wvp = MathUtils::Matrix::MakeAffineMatrix(transform.scale, transform.rotate, transform.translate) * viewMatrix * projectionMatrix;
+            transformationData->WVP = wvp;
+
+#pragma endregion
 
             UINT bbi = swapChain->GetCurrentBackBufferIndex();
 
@@ -521,6 +562,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
             commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
+            commandList->SetGraphicsRootConstantBufferView(1, transformationResource->GetGPUVirtualAddress());
             commandList->DrawInstanced(3, 1, 0, 0 );
 
 
