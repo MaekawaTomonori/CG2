@@ -20,6 +20,10 @@ struct VertexData{
     Vector4 position;
 };
 
+struct Material{
+    Vector4 color;
+};
+
 struct D3DLeakChecker{
 	~D3DLeakChecker() {
         Microsoft::WRL::ComPtr<IDXGIDebug1> debug;
@@ -129,6 +133,33 @@ IDxcBlob* CompileShader(
     shaderResult->Release();
 
     return shaderBlob;
+}
+
+ID3D12Resource* CreateBufferResource(ID3D12Device* device, size_t sizeInBytes) {
+    D3D12_HEAP_PROPERTIES uploadHeapProperties {};
+    uploadHeapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
+
+    //resource setting
+    D3D12_RESOURCE_DESC materialResourceDesc {};
+    materialResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    materialResourceDesc.Width = sizeInBytes;
+    materialResourceDesc.Height = 1;
+    materialResourceDesc.DepthOrArraySize = 1;
+    materialResourceDesc.MipLevels = 1;
+    materialResourceDesc.SampleDesc.Count = 1;
+    materialResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+    ID3D12Resource* materialResource = nullptr;
+
+    #ifdef _DEBUG
+    HRESULT hR =
+        #endif
+
+        device->CreateCommittedResource(&uploadHeapProperties, D3D12_HEAP_FLAG_NONE, &materialResourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&materialResource));
+
+    assert(SUCCEEDED(hR));
+
+    return materialResource;
 }
 
 //Rect
@@ -345,6 +376,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     D3D12_ROOT_SIGNATURE_DESC descriptionRootSignature {};
     descriptionRootSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
+    //RootParameter
+    D3D12_ROOT_PARAMETER rootParameter[1] = {};
+    rootParameter[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rootParameter[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    rootParameter[0].Descriptor.ShaderRegister = 0;
+
+    descriptionRootSignature.pParameters = rootParameter;
+    descriptionRootSignature.NumParameters = _countof(rootParameter);
+
     Microsoft::WRL::ComPtr<ID3DBlob> signatureBlob = nullptr;
     Microsoft::WRL::ComPtr<ID3DBlob> errorBlob = nullptr;
 
@@ -408,19 +448,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     assert(SUCCEEDED(hr));
 #pragma endregion
 
-    D3D12_HEAP_PROPERTIES uploadHeapProperties{};
-    uploadHeapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
-
-    D3D12_RESOURCE_DESC vertexResourceDesc {};
-    vertexResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-    vertexResourceDesc.Width = sizeof(VertexData) * 3;
-    vertexResourceDesc.Height = 1;
-    vertexResourceDesc.DepthOrArraySize = 1;
-    vertexResourceDesc.MipLevels = 1;
-    vertexResourceDesc.SampleDesc.Count = 1;
-
-    vertexResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-
     //Viewport Scissor
     D3D12_VIEWPORT viewport {};
     viewport.Width = kClientWidth;
@@ -438,8 +465,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     //Triangle
     Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = nullptr;
-    hr = device->CreateCommittedResource(&uploadHeapProperties, D3D12_HEAP_FLAG_NONE, &vertexResourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&vertexResource));
-    assert(SUCCEEDED(hr));
+    vertexResource.Attach(CreateBufferResource(device.Get(), sizeof(VertexData) * 3));
+    Microsoft::WRL::ComPtr<ID3D12Resource> materialResource = nullptr;
+    materialResource.Attach(CreateBufferResource(device.Get(), sizeof(Material)));
 
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView {};
     vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
@@ -451,6 +479,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     vertexData[0].position = {-0.5f, -0.5f, 0.f, 1.f};
     vertexData[1].position = {0.f, 0.5f, 0.f, 1.f};
     vertexData[2].position = {0.5f, -0.5f, 0.f, 1.f};
+
+    Material* materialData = nullptr;
+    materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
+
+    materialData->color = {1, 0, 0, 1};
 
     MSG msg {};
     while(msg.message != WM_QUIT){
@@ -487,6 +520,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             //Triangle
             commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
             commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
             commandList->DrawInstanced(3, 1, 0, 0 );
 
 
