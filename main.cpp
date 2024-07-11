@@ -7,10 +7,18 @@
 #include <cassert>
 #include <wrl/client.h>
 #include <dxgidebug.h>
+#include <dxcapi.h>
+
+#include "Vector4.h"
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "dxguid.lib")
+#pragma comment(lib, "dxcompiler.lib")
+
+struct VertexData{
+    Vector4 position;
+};
 
 struct D3DLeakChecker{
 	~D3DLeakChecker() {
@@ -67,6 +75,60 @@ void Log(const std::string& message) {
 
 void Log(const std::wstring& message) {
     OutputDebugStringA(ConvertString(message).c_str());
+}
+
+IDxcBlob* CompileShader(
+    const std::wstring& filePath,
+    const wchar_t* profile,
+    IDxcUtils* utils,
+    IDxcCompiler3* compiler,
+    IDxcIncludeHandler* includeHandler
+) {
+    Log(ConvertString(std::format(L"Begin Compile Shader , Path : {}, Profile : {}", filePath, profile)));
+
+    IDxcBlobEncoding* shaderSource = nullptr;
+    HRESULT hr = utils->LoadFile(filePath.c_str(), nullptr, &shaderSource);
+    assert(SUCCEEDED(hr));
+
+    DxcBuffer shaderSourceBuffer;
+    shaderSourceBuffer.Ptr = shaderSource->GetBufferPointer();
+    shaderSourceBuffer.Size = shaderSource->GetBufferSize();
+    shaderSourceBuffer.Encoding = DXC_CP_UTF8;
+
+    LPCWSTR arguments[] = {
+        L"-E", L"main",
+        L"-T", profile,
+        L"-Zi", L"-Qembed_debug",
+        L"-Od", L"-Zpr"
+    };
+
+    IDxcResult* shaderResult = nullptr;
+    hr = compiler->Compile(
+        &shaderSourceBuffer,
+        arguments,
+        _countof(arguments),
+        includeHandler,
+        IID_PPV_ARGS(&shaderResult)
+    );
+    assert(SUCCEEDED(hr));
+
+    IDxcBlobUtf8* shaderError = nullptr;
+    shaderResult->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&shaderError), nullptr);
+    if (shaderError != nullptr && shaderError->GetStringLength() != 0){
+        Log(shaderError->GetStringPointer());
+        assert(false);
+    }
+
+    IDxcBlob* shaderBlob = nullptr;
+    hr = shaderResult->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr);
+    assert(SUCCEEDED(hr));
+
+    Log(ConvertString(std::format(L"Compile Succeeded, Path : {}, Profile : {}", filePath, profile)));
+
+    shaderSource->Release();
+    shaderResult->Release();
+
+    return shaderBlob;
 }
 
 //Rect
@@ -216,6 +278,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     hr = dxgiFactory->CreateSwapChainForHwnd(commandQueue.Get(), hwnd, &swapChainDesc, nullptr, nullptr, reinterpret_cast<IDXGISwapChain1**>(swapChain.GetAddressOf()));
     assert(SUCCEEDED(hr));
 
+    //rtv
+
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap = nullptr;
     D3D12_DESCRIPTOR_HEAP_DESC rtvDescriptorHeapDesc {};
     rtvDescriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
@@ -244,6 +308,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     rtvHandles[1].ptr = rtvStartHandle.ptr + device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     device->CreateRenderTargetView(swapChainResources[1].Get(), &rtvDesc, rtvHandles[1]);
 
+    //fence
     Microsoft::WRL::ComPtr<ID3D12Fence> fence = nullptr;
     uint64_t fenceValue = 0;
     hr = device->CreateFence(fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
@@ -252,9 +317,144 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     HANDLE fenceEvent = CreateEvent(nullptr, false, false, nullptr);
     assert(fenceEvent != nullptr);
 
+    //dxc
+    Microsoft::WRL::ComPtr<IDxcUtils> dxcUtils = nullptr;
+    Microsoft::WRL::ComPtr<IDxcCompiler3> dxcCompiler = nullptr;
+
+    hr = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils));
+    assert(SUCCEEDED(hr));
+
+    hr = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&dxcCompiler));
+    assert(SUCCEEDED(hr));
+
+    Microsoft::WRL::ComPtr<IDxcIncludeHandler> includeHandler = nullptr;
+    hr = dxcUtils->CreateDefaultIncludeHandler(&includeHandler);
+
+#pragma region PSO
+
+    /*
+     * RootSignature
+     * InputLayout
+     * BlendState
+     * VertexShader
+     * Rasterizer
+     * PixelShader
+     */
+
+    //RootSignature
+    D3D12_ROOT_SIGNATURE_DESC descriptionRootSignature {};
+    descriptionRootSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+    Microsoft::WRL::ComPtr<ID3DBlob> signatureBlob = nullptr;
+    Microsoft::WRL::ComPtr<ID3DBlob> errorBlob = nullptr;
+
+    hr = D3D12SerializeRootSignature(&descriptionRootSignature, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob, &errorBlob);
+
+    if(FAILED(hr)){
+        Log(static_cast<char*>(errorBlob->GetBufferPointer()));
+        assert(false);
+    }
+
+    Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature = nullptr;
+    hr = device->CreateRootSignature(0, signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(), IID_PPV_ARGS(&rootSignature));
+    assert(SUCCEEDED(hr));
+
+    //InputLayout
+    D3D12_INPUT_ELEMENT_DESC inputElementDescs[1] = {};
+    inputElementDescs[0].SemanticName = "POSITION";
+    inputElementDescs[0].SemanticIndex = 0;
+    inputElementDescs[0].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+    inputElementDescs[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+
+    D3D12_INPUT_LAYOUT_DESC inputLayoutDesc {};
+    inputLayoutDesc.pInputElementDescs = inputElementDescs;
+    inputLayoutDesc.NumElements = _countof(inputElementDescs);
+
+    //BlendState
+    D3D12_BLEND_DESC blendDesc {};
+    blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+    //RasterizerState
+    D3D12_RASTERIZER_DESC rasterizerDesc {};
+    rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
+    rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
+
+    //Compile Shader
+    Microsoft::WRL::ComPtr<IDxcBlob> vertexShaderBlob = CompileShader(L"Object3d.VS.hlsl", L"vs_6_0", dxcUtils.Get(), dxcCompiler.Get(), includeHandler.Get());
+    assert(vertexShaderBlob != nullptr);
+
+    Microsoft::WRL::ComPtr<IDxcBlob> pixelShaderBlob = CompileShader(L"Object3d.PS.hlsl", L"ps_6_0", dxcUtils.Get(), dxcCompiler.Get(), includeHandler.Get());
+    assert(pixelShaderBlob != nullptr);
+
+    //pipeline state object
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsPipelineStateDesc {};
+    graphicsPipelineStateDesc.pRootSignature = rootSignature.Get();
+    graphicsPipelineStateDesc.InputLayout = inputLayoutDesc;
+    graphicsPipelineStateDesc.BlendState = blendDesc;
+    graphicsPipelineStateDesc.VS = {vertexShaderBlob->GetBufferPointer(), vertexShaderBlob->GetBufferSize()};
+    graphicsPipelineStateDesc.RasterizerState = rasterizerDesc;
+    graphicsPipelineStateDesc.PS = {pixelShaderBlob->GetBufferPointer(), pixelShaderBlob->GetBufferSize()};
+
+    graphicsPipelineStateDesc.NumRenderTargets = 1;
+    graphicsPipelineStateDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+
+    graphicsPipelineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+
+    graphicsPipelineStateDesc.SampleDesc.Count = 1;
+    graphicsPipelineStateDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
+
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> graphicsPipelineState = nullptr;
+    hr = device->CreateGraphicsPipelineState(&graphicsPipelineStateDesc, IID_PPV_ARGS(&graphicsPipelineState));
+    assert(SUCCEEDED(hr));
+#pragma endregion
+
+    D3D12_HEAP_PROPERTIES uploadHeapProperties{};
+    uploadHeapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
+
+    D3D12_RESOURCE_DESC vertexResourceDesc {};
+    vertexResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    vertexResourceDesc.Width = sizeof(VertexData) * 3;
+    vertexResourceDesc.Height = 1;
+    vertexResourceDesc.DepthOrArraySize = 1;
+    vertexResourceDesc.MipLevels = 1;
+    vertexResourceDesc.SampleDesc.Count = 1;
+
+    vertexResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+    //Viewport Scissor
+    D3D12_VIEWPORT viewport {};
+    viewport.Width = kClientWidth;
+    viewport.Height = kClientHeight;
+    viewport.TopLeftX = 0;
+    viewport.TopLeftY = 0;
+    viewport.MinDepth = 0;
+    viewport.MaxDepth = 1;
+
+    D3D12_RECT scissorRect {};
+    scissorRect.left = 0;
+    scissorRect.right = kClientWidth;
+    scissorRect.top = 0;
+    scissorRect.bottom = kClientHeight;
+
+    //Triangle
+    Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = nullptr;
+    hr = device->CreateCommittedResource(&uploadHeapProperties, D3D12_HEAP_FLAG_NONE, &vertexResourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&vertexResource));
+    assert(SUCCEEDED(hr));
+
+    D3D12_VERTEX_BUFFER_VIEW vertexBufferView {};
+    vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
+    vertexBufferView.SizeInBytes = sizeof(VertexData) * 3;
+    vertexBufferView.StrideInBytes = sizeof(VertexData);
+
+    VertexData* vertexData = nullptr;
+    vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
+    vertexData[0].position = {-0.5f, -0.5f, 0.f, 1.f};
+    vertexData[1].position = {0.f, 0.5f, 0.f, 1.f};
+    vertexData[2].position = {0.5f, -0.5f, 0.f, 1.f};
+
     MSG msg {};
     while(msg.message != WM_QUIT){
-        if(PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)){
+        if(PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)){
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }else{
@@ -275,6 +475,22 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
             float color[4] = {0.1f, 0.25f, 0.5f, 1};
             commandList->ClearRenderTargetView(rtvHandles[bbi], color, 0, nullptr);
+
+            commandList->RSSetViewports(1, &viewport);
+            commandList->RSSetScissorRects(1, &scissorRect);
+
+            commandList->SetGraphicsRootSignature(rootSignature.Get());
+
+            commandList->SetPipelineState(graphicsPipelineState.Get());
+
+#pragma region Draw
+            //Triangle
+            commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+            commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            commandList->DrawInstanced(3, 1, 0, 0 );
+
+
+#pragma endregion
 
 
             barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
