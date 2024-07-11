@@ -9,6 +9,12 @@
 #include <dxgidebug.h>
 #include <dxcapi.h>
 
+//externals
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_dx12.h"
+#include "imgui/imgui_impl_win32.h"
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 #include "MathUtils.h"
 #include "Matrix.h"
 #include "Transform.h"
@@ -18,6 +24,8 @@
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "dxcompiler.lib")
+
+
 
 struct VertexData{
     Vector4 position;
@@ -43,6 +51,9 @@ struct D3DLeakChecker{
 };
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam)){
+        return true;
+    }
     switch (msg){
     case WM_DESTROY:
         PostQuitMessage(0);
@@ -169,6 +180,21 @@ ID3D12Resource* CreateBufferResource(ID3D12Device* device, size_t sizeInBytes) {
     return materialResource;
 }
 
+ID3D12DescriptorHeap* CreateDescriptorHeap(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT descriptorsNum, bool shaderVisible) {
+    ID3D12DescriptorHeap* heap = nullptr;
+    D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
+    heapDesc.Type = type;
+    heapDesc.NodeMask = 0;
+    heapDesc.NumDescriptors = descriptorsNum;
+    heapDesc.Flags = shaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+
+    HRESULT hr = device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&heap));
+    assert(SUCCEEDED(hr));
+
+    return heap;
+}
+
+
 //Rect
 const int32_t kClientWidth = 1280;
 const int32_t kClientHeight = 720;
@@ -180,7 +206,7 @@ Transform Camera {
 };
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
-    D3DLeakChecker leakChecker;
+    std::shared_ptr<D3DLeakChecker> leakChecker;
 
     //Registering Window Class
     WNDCLASS wc {};
@@ -324,13 +350,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     //rtv
 
-    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap = nullptr;
-    D3D12_DESCRIPTOR_HEAP_DESC rtvDescriptorHeapDesc {};
-    rtvDescriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-    rtvDescriptorHeapDesc.NumDescriptors = 2;
-
-    hr = device->CreateDescriptorHeap(&rtvDescriptorHeapDesc, IID_PPV_ARGS(&rtvDescriptorHeap));
-    assert(SUCCEEDED(hr));
+    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap = CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
 
     Microsoft::WRL::ComPtr<ID3D12Resource> swapChainResources[2] = {nullptr};
 
@@ -481,6 +501,23 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     scissorRect.top = 0;
     scissorRect.bottom = kClientHeight;
 
+    //shader resource view
+    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap = CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 128, true);
+
+    //ImGui
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGui::StyleColorsDark();
+    ImGui_ImplWin32_Init(hwnd);
+    ImGui_ImplDX12_Init(
+        device.Get(), 
+        swapChainDesc.BufferCount,
+        rtvDesc.Format,
+        srvDescriptorHeap.Get(),
+        srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
+        srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart()
+    );
+
 #pragma region Triangle
     //Triangle
     Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = nullptr;
@@ -516,6 +553,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     };
 #pragma endregion
 
+
+
+#pragma region MainLoop
     MSG msg {};
     while(msg.message != WM_QUIT){
         if(PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)){
@@ -524,6 +564,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         }else{
             //do somethings...//
 
+            //BeginFrame
+            ImGui_ImplDX12_NewFrame();
+            ImGui_ImplWin32_NewFrame();
+            ImGui::NewFrame();
+
+            ImGui::ShowDemoWindow();
 #pragma region Update
             transform.rotate.y += 0.03f;
             Matrix4x4 cameraMatrix = MathUtils::Matrix::MakeAffineMatrix(Camera.scale, Camera.rotate, Camera.translate);
@@ -533,6 +579,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             transformationData->WVP = wvp;
 
 #pragma endregion
+
+            ImGui::Render();
 
             UINT bbi = swapChain->GetCurrentBackBufferIndex();
 
@@ -549,6 +597,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
             float color[4] = {0.1f, 0.25f, 0.5f, 1};
             commandList->ClearRenderTargetView(rtvHandles[bbi], color, 0, nullptr);
+
+            Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeaps[] = {srvDescriptorHeap};
+            commandList->SetDescriptorHeaps(1, descriptorHeaps->GetAddressOf());
+
 
             commandList->RSSetViewports(1, &viewport);
             commandList->RSSetScissorRects(1, &scissorRect);
@@ -568,6 +620,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #pragma endregion
 
+            ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
 
             barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
             barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
@@ -597,6 +650,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             assert(SUCCEEDED(hr));
         }
     }
+
+#pragma endregion
+
+    ImGui_ImplDX12_Shutdown();
+    ImGui_ImplWin32_Shutdown();
+    ImGui::DestroyContext();
 
     CloseHandle(fenceEvent);
     CloseWindow(hwnd);
