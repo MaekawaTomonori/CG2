@@ -10,6 +10,11 @@
 #include <dxcapi.h>
 
 //externals
+#include <DirectXMath.h>
+
+#include "Vector2.h"
+#include "DirectXTex/d3dx12.h"
+#include "DirectXTex/DirectXTex.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_dx12.h"
 #include "imgui/imgui_impl_win32.h"
@@ -29,6 +34,7 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 
 struct VertexData{
     Vector4 position;
+    Vector2 texcoord;
 };
 
 struct Material{
@@ -194,6 +200,78 @@ ID3D12DescriptorHeap* CreateDescriptorHeap(ID3D12Device* device, D3D12_DESCRIPTO
     return heap;
 }
 
+DirectX::ScratchImage LoadTexture(const std::string& filePath) {
+    DirectX::ScratchImage image;
+    std::wstring filePathW = ConvertString(filePath);
+    HRESULT hr = DirectX::LoadFromWICFile(filePathW.c_str(), DirectX::WIC_FLAGS_NONE, nullptr, image);
+    assert(SUCCEEDED(hr));
+
+    DirectX::ScratchImage mipImages {};
+    hr = DirectX::GenerateMipMaps(image.GetImages(), image.GetImageCount(), image.GetMetadata(), DirectX::TEX_FILTER_SRGB, 0, mipImages);
+    assert(SUCCEEDED(hr));
+
+    return mipImages;
+}
+
+ID3D12Resource* CreateTextureResource(ID3D12Device* device, const DirectX::TexMetadata& metadata) {
+    D3D12_RESOURCE_DESC resourceDesc {};
+    resourceDesc.Width = UINT(metadata.width);
+    resourceDesc.Height = UINT(metadata.height);
+    resourceDesc.MipLevels = UINT16(metadata.mipLevels);
+    resourceDesc.DepthOrArraySize = UINT16(metadata.arraySize);
+    resourceDesc.Format = metadata.format;
+    resourceDesc.SampleDesc.Count = 1;
+    resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION(metadata.dimension);
+
+    D3D12_HEAP_PROPERTIES heapProperties {};
+    heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
+
+    ID3D12Resource* resource = nullptr;
+    HRESULT hr = device->CreateCommittedResource(
+        &heapProperties,
+        D3D12_HEAP_FLAG_NONE,
+        &resourceDesc,
+        D3D12_RESOURCE_STATE_COPY_DEST,
+        nullptr,
+        IID_PPV_ARGS(&resource)
+    );
+    assert(SUCCEEDED(hr));
+
+    return resource;
+}
+
+[[nodiscard]]
+ID3D12Resource* UploadTextureData(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, ID3D12Resource* texture, const DirectX::ScratchImage& mipImages) {
+
+    std::vector<D3D12_SUBRESOURCE_DATA> subresources;
+    DirectX::PrepareUpload(device, mipImages.GetImages(), mipImages.GetImageCount(), mipImages.GetMetadata(), subresources);
+    uint64_t intermediateSize = GetRequiredIntermediateSize(texture, 0, UINT(mipImages.GetImageCount()));
+    ID3D12Resource* intermediateResource = CreateBufferResource(device, intermediateSize);
+    UpdateSubresources(commandList, texture, intermediateResource, 0, 0, UINT(subresources.size()), subresources.data());
+
+    D3D12_RESOURCE_BARRIER barrier {};
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+    barrier.Transition.pResource = texture;
+    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_GENERIC_READ;
+
+    commandList->ResourceBarrier(1, &barrier);
+    return intermediateResource;
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE GetCPUHandle(ID3D12Device* device, ID3D12DescriptorHeap* heap, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t index) {
+    D3D12_CPU_DESCRIPTOR_HANDLE handle = heap->GetCPUDescriptorHandleForHeapStart();
+    handle.ptr += device->GetDescriptorHandleIncrementSize(type) * index;
+    return handle;
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(ID3D12Device* device, ID3D12DescriptorHeap* heap, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t index) {
+    D3D12_GPU_DESCRIPTOR_HANDLE handle = heap->GetGPUDescriptorHandleForHeapStart();
+    handle.ptr += device->GetDescriptorHandleIncrementSize(type) * index;
+    return handle;
+}
 
 //Rect
 const int32_t kClientWidth = 1280;
@@ -206,6 +284,8 @@ Transform Camera {
 };
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
+    CoInitializeEx(0, COINIT_MULTITHREADED);
+
     std::shared_ptr<D3DLeakChecker> leakChecker;
 
     //Registering Window Class
@@ -410,7 +490,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     descriptionRootSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
     //RootParameter
-    D3D12_ROOT_PARAMETER rootParameter[2] = {};
+    D3D12_ROOT_PARAMETER rootParameter[3] = {};
     //Color
 	rootParameter[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     rootParameter[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
@@ -420,8 +500,35 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     rootParameter[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
     rootParameter[1].Descriptor.ShaderRegister = 0;
 
+    //DescriptorRange
+    D3D12_DESCRIPTOR_RANGE descriptorRange[1] = {};
+    descriptorRange[0].BaseShaderRegister = 0;
+    descriptorRange[0].NumDescriptors = 1;
+    descriptorRange[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    descriptorRange[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    //DescriptorTable
+    rootParameter[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    rootParameter[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    rootParameter[2].DescriptorTable.pDescriptorRanges = descriptorRange;
+    rootParameter[2].DescriptorTable.NumDescriptorRanges = _countof(descriptorRange);
+
     descriptionRootSignature.pParameters = rootParameter;
     descriptionRootSignature.NumParameters = _countof(rootParameter);
+
+    //Sampler
+    D3D12_STATIC_SAMPLER_DESC staticSamplers[1] {};
+    staticSamplers[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+    staticSamplers[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    staticSamplers[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    staticSamplers[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    staticSamplers[0].ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+    staticSamplers[0].MaxLOD = D3D12_FLOAT32_MAX;
+    staticSamplers[0].ShaderRegister = 0;
+    staticSamplers[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+    descriptionRootSignature.pStaticSamplers = staticSamplers;
+    descriptionRootSignature.NumStaticSamplers = _countof(staticSamplers);
 
     Microsoft::WRL::ComPtr<ID3DBlob> signatureBlob = nullptr;
     Microsoft::WRL::ComPtr<ID3DBlob> errorBlob = nullptr;
@@ -438,11 +545,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     assert(SUCCEEDED(hr));
 
     //InputLayout
-    D3D12_INPUT_ELEMENT_DESC inputElementDescs[1] = {};
+    D3D12_INPUT_ELEMENT_DESC inputElementDescs[2] = {};
     inputElementDescs[0].SemanticName = "POSITION";
     inputElementDescs[0].SemanticIndex = 0;
     inputElementDescs[0].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
     inputElementDescs[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+
+    inputElementDescs[1].SemanticName = "TEXCOORD";
+    inputElementDescs[1].SemanticIndex = 0;
+    inputElementDescs[1].Format = DXGI_FORMAT_R32G32_FLOAT;
+    inputElementDescs[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
 
     D3D12_INPUT_LAYOUT_DESC inputLayoutDesc {};
     inputLayoutDesc.pInputElementDescs = inputElementDescs;
@@ -538,9 +650,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     vertexData[1].position = {0.f, 0.5f, 0.f, 1.f};
     vertexData[2].position = {0.5f, -0.5f, 0.f, 1.f};
 
+    vertexData[0].texcoord = {0, 1};
+    vertexData[1].texcoord = {0.5f, 0};
+    vertexData[2].texcoord = {1, 1};
+
     Material* materialData = nullptr;
     materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
-    materialData->color = {1, 0, 0, 1};
+    materialData->color = {1, 1, 1, 1};
 
     TransformationMatrix* transformationData = nullptr;
     transformationResource->Map(0, nullptr, reinterpret_cast<void**>(&transformationData));
@@ -553,7 +669,23 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     };
 #pragma endregion
 
+    //texture
+    DirectX::ScratchImage mipImages = LoadTexture("resources/uvChecker.png");
+    const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
+    Microsoft::WRL::ComPtr<ID3D12Resource> textureResource = CreateTextureResource(device.Get(), metadata);
+    Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource;
+	intermediateResource.Attach(UploadTextureData(device.Get(), commandList.Get(), textureResource.Get(), mipImages));
 
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc {};
+    srvDesc.Format = metadata.format;
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MipLevels = UINT(metadata.mipLevels);
+
+    D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU = GetCPUHandle(device.Get(), srvDescriptorHeap.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+    D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU = GetGPUHandle(device.Get(), srvDescriptorHeap.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+
+    device->CreateShaderResourceView(textureResource.Get(), &srvDesc, textureSrvHandleCPU);
 
 #pragma region MainLoop
     MSG msg {};
@@ -615,6 +747,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
             commandList->SetGraphicsRootConstantBufferView(1, transformationResource->GetGPUVirtualAddress());
+            commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
             commandList->DrawInstanced(3, 1, 0, 0 );
 
 
@@ -659,7 +792,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     CloseHandle(fenceEvent);
     CloseWindow(hwnd);
-
+    CoUninitialize();
 
     return 0;
 }
