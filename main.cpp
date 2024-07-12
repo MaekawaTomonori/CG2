@@ -200,6 +200,7 @@ ID3D12DescriptorHeap* CreateDescriptorHeap(ID3D12Device* device, D3D12_DESCRIPTO
     return heap;
 }
 
+
 DirectX::ScratchImage LoadTexture(const std::string& filePath) {
     DirectX::ScratchImage image;
     std::wstring filePathW = ConvertString(filePath);
@@ -271,6 +272,38 @@ D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(ID3D12Device* device, ID3D12DescriptorH
     D3D12_GPU_DESCRIPTOR_HANDLE handle = heap->GetGPUDescriptorHandleForHeapStart();
     handle.ptr += device->GetDescriptorHandleIncrementSize(type) * index;
     return handle;
+}
+
+ID3D12Resource* CreateDepthStencilResource(ID3D12Device* device, int32_t width, int32_t height) {
+    D3D12_RESOURCE_DESC resourceDesc {};
+    resourceDesc.Width = width;
+    resourceDesc.Height = height;
+    resourceDesc.MipLevels = 1;
+    resourceDesc.DepthOrArraySize = 1;
+    resourceDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    resourceDesc.SampleDesc.Count = 1;
+    resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+    D3D12_HEAP_PROPERTIES heapProperties {};
+    heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
+
+    D3D12_CLEAR_VALUE depthClearValue {};
+    depthClearValue.DepthStencil.Depth = 1.f;
+    depthClearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+    ID3D12Resource* resource = nullptr;
+    HRESULT hr = device->CreateCommittedResource(
+        &heapProperties,
+        D3D12_HEAP_FLAG_NONE,
+        &resourceDesc,
+        D3D12_RESOURCE_STATE_DEPTH_WRITE,
+        &depthClearValue,
+        IID_PPV_ARGS(&resource)
+    );
+    assert(SUCCEEDED(hr));
+
+    return resource;
 }
 
 //Rect
@@ -633,7 +666,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma region Triangle
     //Triangle
     Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = nullptr;
-    vertexResource.Attach(CreateBufferResource(device.Get(), sizeof(VertexData) * 3));
+    vertexResource.Attach(CreateBufferResource(device.Get(), sizeof(VertexData) * 3 * 2));
     Microsoft::WRL::ComPtr<ID3D12Resource> materialResource = nullptr;
     materialResource.Attach(CreateBufferResource(device.Get(), sizeof(Material)));
     Microsoft::WRL::ComPtr<ID3D12Resource> transformationResource = nullptr;
@@ -641,11 +674,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView {};
     vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
-    vertexBufferView.SizeInBytes = sizeof(VertexData) * 3;
+    vertexBufferView.SizeInBytes = sizeof(VertexData) * 3 * 2;
     vertexBufferView.StrideInBytes = sizeof(VertexData);
 
     VertexData* vertexData = nullptr;
     vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
+
+    //1枚目
     vertexData[0].position = {-0.5f, -0.5f, 0.f, 1.f};
     vertexData[1].position = {0.f, 0.5f, 0.f, 1.f};
     vertexData[2].position = {0.5f, -0.5f, 0.f, 1.f};
@@ -653,6 +688,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     vertexData[0].texcoord = {0, 1};
     vertexData[1].texcoord = {0.5f, 0};
     vertexData[2].texcoord = {1, 1};
+
+    //2枚目
+    vertexData[3].position = {-0.5f, -0.5f, 0.5f, 1};
+    vertexData[4].position = {0,0,0,1};
+    vertexData[5].position = {0.5f, -0.5f, -0.5f, 1};
+
+    vertexData[3].texcoord = {0,1};
+    vertexData[4].texcoord = {0.5f, 0};
+    vertexData[5].texcoord = {1,1};
 
     Material* materialData = nullptr;
     materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
@@ -703,7 +747,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
             ImGui::ShowDemoWindow();
 #pragma region Update
-            transform.rotate.y += 0.03f;
+            transform.rotate.y += 0.01f;
             Matrix4x4 cameraMatrix = MathUtils::Matrix::MakeAffineMatrix(Camera.scale, Camera.rotate, Camera.translate);
             Matrix4x4 viewMatrix = cameraMatrix.Inverse();
             Matrix4x4 projectionMatrix = MathUtils::Matrix::MakePerspectiveFovMatrix(0.45f, float(kClientWidth) / float(kClientHeight), 0.1f, 100);
@@ -748,7 +792,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
             commandList->SetGraphicsRootConstantBufferView(1, transformationResource->GetGPUVirtualAddress());
             commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
-            commandList->DrawInstanced(3, 1, 0, 0 );
+            commandList->DrawInstanced(3 * 2, 1, 0, 0 );
 
 
 #pragma endregion
