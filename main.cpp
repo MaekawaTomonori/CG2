@@ -609,6 +609,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     Microsoft::WRL::ComPtr<IDxcBlob> pixelShaderBlob = CompileShader(L"Object3d.PS.hlsl", L"ps_6_0", dxcUtils.Get(), dxcCompiler.Get(), includeHandler.Get());
     assert(pixelShaderBlob != nullptr);
 
+    //DepthStencilState
+
+
     //pipeline state object
     D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsPipelineStateDesc {};
     graphicsPipelineStateDesc.pRootSignature = rootSignature.Get();
@@ -730,6 +733,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU = GetGPUHandle(device.Get(), srvDescriptorHeap.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
 
     device->CreateShaderResourceView(textureResource.Get(), &srvDesc, textureSrvHandleCPU);
+
+    //DepthStencilTexture
+    Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource = nullptr;
+    depthStencilResource.Attach(CreateDepthStencilResource(device.Get(), kClientWidth, kClientHeight));
+
+    //DepthStencilView
+    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap = nullptr;
+    dsvDescriptorHeap.Attach(CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false));
+
+    D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc {};
+    dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+
+    device->CreateDepthStencilView(depthStencilResource.Get(), &dsvDesc, dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
 #pragma region MainLoop
     MSG msg {};
