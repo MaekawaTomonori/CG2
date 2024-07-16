@@ -351,13 +351,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         nullptr
     );
 
-	#ifdef _DEBUG
+    #ifdef _DEBUG
     Microsoft::WRL::ComPtr<ID3D12Debug1> debugController = nullptr;
-    if(SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))){
+    if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))){
         debugController->EnableDebugLayer();
         debugController->SetEnableGPUBasedValidation(true);
     }
-	#endif
+    #endif
 
 
     ShowWindow(hwnd, SW_SHOW);
@@ -405,7 +405,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     assert(device != nullptr);
     Log(ConvertString(std::format(L"Complete create D3D12Device!!!\n")));
 
-	#ifdef _DEBUG
+    #ifdef _DEBUG
     Microsoft::WRL::ComPtr<ID3D12InfoQueue> infoQueue = nullptr;
     if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&infoQueue)))){
         infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
@@ -425,7 +425,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
         infoQueue->PushStorageFilter(&filter);
     }
-	#endif
+    #endif
 
 
     //================================================================================
@@ -507,7 +507,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     Microsoft::WRL::ComPtr<IDxcIncludeHandler> includeHandler = nullptr;
     hr = dxcUtils->CreateDefaultIncludeHandler(&includeHandler);
 
-#pragma region PSO
+    #pragma region PSO
 
     /*
      * RootSignature
@@ -518,14 +518,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
      * PixelShader
      */
 
-    //RootSignature
+     //RootSignature
     D3D12_ROOT_SIGNATURE_DESC descriptionRootSignature {};
     descriptionRootSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
     //RootParameter
     D3D12_ROOT_PARAMETER rootParameter[3] = {};
     //Color
-	rootParameter[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rootParameter[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     rootParameter[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
     rootParameter[0].Descriptor.ShaderRegister = 0;
     //Transform
@@ -568,7 +568,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     hr = D3D12SerializeRootSignature(&descriptionRootSignature, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob, &errorBlob);
 
-    if(FAILED(hr)){
+    if (FAILED(hr)){
         Log(static_cast<char*>(errorBlob->GetBufferPointer()));
         assert(false);
     }
@@ -638,7 +638,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     Microsoft::WRL::ComPtr<ID3D12PipelineState> graphicsPipelineState = nullptr;
     hr = device->CreateGraphicsPipelineState(&graphicsPipelineStateDesc, IID_PPV_ARGS(&graphicsPipelineState));
     assert(SUCCEEDED(hr));
-#pragma endregion
+    #pragma endregion
 
     //Viewport Scissor
     D3D12_VIEWPORT viewport {};
@@ -664,7 +664,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     ImGui::StyleColorsDark();
     ImGui_ImplWin32_Init(hwnd);
     ImGui_ImplDX12_Init(
-        device.Get(), 
+        device.Get(),
         swapChainDesc.BufferCount,
         rtvDesc.Format,
         srvDescriptorHeap.Get(),
@@ -672,7 +672,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart()
     );
 
-#pragma region Triangle
+    #pragma region Triangle
     //Triangle
     Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = nullptr;
     vertexResource.Attach(CreateBufferResource(device.Get(), sizeof(VertexData) * 3 * 2));
@@ -716,6 +716,50 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     transformationData->WVP = MathUtils::Matrix::MakeIdentity();
 
     Transform transform {
+        {1,1,1},
+        {0,0,0},
+        {0,0,0}
+    };
+    #pragma endregion
+
+    #pragma region Sprite
+    /*
+     * VertexResource
+     * VertexBufferView
+     * TransformMatrix用のCBV
+     * CPUで扱うTransform
+     */
+    Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceSprite = nullptr;
+    vertexResourceSprite.Attach(CreateBufferResource(device.Get(), sizeof(VertexData) * 6));
+    D3D12_VERTEX_BUFFER_VIEW vertexBufferViewSprite {};
+    vertexBufferViewSprite.BufferLocation = vertexResourceSprite->GetGPUVirtualAddress();
+    vertexBufferViewSprite.SizeInBytes = sizeof(VertexData) * 6;
+    vertexBufferViewSprite.StrideInBytes = sizeof(VertexData);
+
+    VertexData* vertexDataSprite = nullptr;
+    vertexResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataSprite));
+
+    vertexDataSprite[0].position = {0, 360, 0, 1};
+    vertexDataSprite[1].position = {0, 0, 0, 1};
+    vertexDataSprite[2].position = {640, 360, 0, 1};
+    vertexDataSprite[3].position = {0, 0, 0, 1};
+    vertexDataSprite[4].position = {640, 0, 0, 1};
+    vertexDataSprite[5].position = {640, 360, 0, 1};
+
+    vertexDataSprite[0].texcoord = {0, 1};
+    vertexDataSprite[1].texcoord = {0, 0};
+    vertexDataSprite[2].texcoord = {1, 1};
+    vertexDataSprite[3].texcoord = {0, 0};
+    vertexDataSprite[4].texcoord = {1, 0};
+    vertexDataSprite[5].texcoord = {1, 1};
+
+    Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResourceSprite = nullptr;
+    transformationMatrixResourceSprite.Attach(CreateBufferResource(device.Get(), sizeof(TransformationMatrix)));
+    TransformationMatrix* transformationMatrixSprite = nullptr;
+    transformationMatrixResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixSprite));
+    transformationMatrixSprite->WVP = MathUtils::Matrix::MakeIdentity();
+
+    Transform transformSprite = {
         {1,1,1},
         {0,0,0},
         {0,0,0}
@@ -770,6 +814,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
             ImGui::ShowDemoWindow();
 #pragma region Update
+            //Triangle
             transform.rotate.y += 0.01f;
             Matrix4x4 cameraMatrix = MathUtils::Matrix::MakeAffineMatrix(Camera.scale, Camera.rotate, Camera.translate);
             Matrix4x4 viewMatrix = cameraMatrix.Inverse();
@@ -777,6 +822,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             Matrix4x4 wvp = MathUtils::Matrix::MakeAffineMatrix(transform.scale, transform.rotate, transform.translate) * viewMatrix * projectionMatrix;
             transformationData->WVP = wvp;
 
+            //Sprite
+            Matrix4x4 viewMatrixSprite = MathUtils::Matrix::MakeIdentity();
+            Matrix4x4 projectionMatrixSprite = MathUtils::Matrix::MakeOrthogonalMatrix(0, float(kClientWidth), 0, float(kClientHeight), 0, 100);
+            Matrix4x4 worldViewProjectionMatrixSprite = MathUtils::Matrix::MakeAffineMatrix(transformSprite.scale, transformSprite.rotate, transformSprite.translate) * viewMatrixSprite * projectionMatrixSprite;
+            transformationMatrixSprite->WVP = worldViewProjectionMatrixSprite;
+
+            ImGui::Begin("Sprite Transform");
+            ImGui::SliderFloat2("Translate", &transformSprite.translate.x, 0, 1000);
+            ImGui::End();
 #pragma endregion
 
             ImGui::Render();
@@ -819,6 +873,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
             commandList->DrawInstanced(3 * 2, 1, 0, 0 );
 
+            //Sprite
+            commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
+            commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
+            commandList->DrawInstanced(6, 1, 0, 0);
 
 #pragma endregion
 

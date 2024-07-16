@@ -89,8 +89,7 @@ Matrix4x4 MathUtils::Matrix::MakeAffineMatrix(const Vector3& scale, const Vector
     return scaleMat * rotateMat * translateMat;
 }
 
-Matrix4x4 MathUtils::Matrix::MakeOrthogonalMatrix(float left, float right, float top, float bottom, float znear,
-                                                  float zfar) {
+Matrix4x4 MathUtils::Matrix::MakeOrthogonalMatrix(float left, float right, float top, float bottom, float znear, float zfar) {
     return Matrix4x4 {
         2 / (right - left), 0, 0, 0,
         0, 2 / (top - bottom), 0, 0,
