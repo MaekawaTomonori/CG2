@@ -8,6 +8,7 @@
 #include <wrl/client.h>
 #include <dxgidebug.h>
 #include <dxcapi.h>
+#include <numbers>
 
 //externals
 #include <DirectXMath.h>
@@ -599,7 +600,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     //RasterizerState
     D3D12_RASTERIZER_DESC rasterizerDesc {};
-    rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
+    rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
     rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
 
     //Compile Shader
@@ -672,54 +673,54 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart()
     );
 
-    #pragma region Triangle
+	#pragma region Triangle
     //Triangle
-    Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = nullptr;
-    vertexResource.Attach(CreateBufferResource(device.Get(), sizeof(VertexData) * 3 * 2));
-    Microsoft::WRL::ComPtr<ID3D12Resource> materialResource = nullptr;
-    materialResource.Attach(CreateBufferResource(device.Get(), sizeof(Material)));
-    Microsoft::WRL::ComPtr<ID3D12Resource> transformationResource = nullptr;
-    transformationResource.Attach(CreateBufferResource(device.Get(), sizeof(TransformationMatrix)));
+    //Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = nullptr;
+    //vertexResource.Attach(CreateBufferResource(device.Get(), sizeof(VertexData) * 3 * 2));
+    //Microsoft::WRL::ComPtr<ID3D12Resource> materialResource = nullptr;
+    //materialResource.Attach(CreateBufferResource(device.Get(), sizeof(Material)));
+    //Microsoft::WRL::ComPtr<ID3D12Resource> transformationResource = nullptr;
+    //transformationResource.Attach(CreateBufferResource(device.Get(), sizeof(TransformationMatrix)));
 
-    D3D12_VERTEX_BUFFER_VIEW vertexBufferView {};
-    vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
-    vertexBufferView.SizeInBytes = sizeof(VertexData) * 3 * 2;
-    vertexBufferView.StrideInBytes = sizeof(VertexData);
+    //D3D12_VERTEX_BUFFER_VIEW vertexBufferView {};
+    //vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
+    //vertexBufferView.SizeInBytes = sizeof(VertexData) * 3 * 2;
+    //vertexBufferView.StrideInBytes = sizeof(VertexData);
 
-    VertexData* vertexData = nullptr;
-    vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
+    //VertexData* vertexData = nullptr;
+    //vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
 
-    //1枚目
-    vertexData[0].position = {-0.5f, -0.5f, 0.f, 1.f};
-    vertexData[1].position = {0.f, 0.5f, 0.f, 1.f};
-    vertexData[2].position = {0.5f, -0.5f, 0.f, 1.f};
+    ////1枚目
+    //vertexData[0].position = {-0.5f, -0.5f, 0.f, 1.f};
+    //vertexData[1].position = {0.f, 0.5f, 0.f, 1.f};
+    //vertexData[2].position = {0.5f, -0.5f, 0.f, 1.f};
 
-    vertexData[0].texcoord = {0, 1};
-    vertexData[1].texcoord = {0.5f, 0};
-    vertexData[2].texcoord = {1, 1};
+    //vertexData[0].texcoord = {0, 1};
+    //vertexData[1].texcoord = {0.5f, 0};
+    //vertexData[2].texcoord = {1, 1};
 
-    //2枚目
-    vertexData[3].position = {-0.5f, -0.5f, 0.5f, 1};
-    vertexData[4].position = {0,0,0,1};
-    vertexData[5].position = {0.5f, -0.5f, -0.5f, 1};
+    ////2枚目
+    //vertexData[3].position = {-0.5f, -0.5f, 0.5f, 1};
+    //vertexData[4].position = {0,0,0,1};
+    //vertexData[5].position = {0.5f, -0.5f, -0.5f, 1};
 
-    vertexData[3].texcoord = {0,1};
-    vertexData[4].texcoord = {0.5f, 0};
-    vertexData[5].texcoord = {1,1};
+    //vertexData[3].texcoord = {0,1};
+    //vertexData[4].texcoord = {0.5f, 0};
+    //vertexData[5].texcoord = {1,1};
 
-    Material* materialData = nullptr;
-    materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
-    materialData->color = {1, 1, 1, 1};
+    //Material* materialData = nullptr;
+    //materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
+    //materialData->color = {1, 1, 1, 1};
 
-    TransformationMatrix* transformationData = nullptr;
-    transformationResource->Map(0, nullptr, reinterpret_cast<void**>(&transformationData));
-    transformationData->WVP = MathUtils::Matrix::MakeIdentity();
+    //TransformationMatrix* transformationData = nullptr;
+    //transformationResource->Map(0, nullptr, reinterpret_cast<void**>(&transformationData));
+    //transformationData->WVP = MathUtils::Matrix::MakeIdentity();
 
-    Transform transform {
-        {1,1,1},
-        {0,0,0},
-        {0,0,0}
-    };
+    //Transform transform {
+    //    {1,1,1},
+    //    {0,0,0},
+    //    {0,0,0}
+    //};
     #pragma endregion
 
     #pragma region Sprite
@@ -764,6 +765,123 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         {0,0,0},
         {0,0,0}
     };
+#pragma endregion
+
+#pragma region Sphere
+    //Sphere
+    constexpr uint32_t kSubdivision = 4;
+    const float kLatEvery = std::numbers::pi_v<float> / kSubdivision;
+    const float kLonEvery = (2 * std::numbers::pi_v<float>) / kSubdivision;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceSphere = nullptr;
+	vertexResourceSphere.Attach(CreateBufferResource(device.Get(), sizeof(VertexData) * (kSubdivision * kSubdivision * 6)));
+
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewSphere {};
+	vertexBufferViewSphere.BufferLocation = vertexResourceSphere->GetGPUVirtualAddress();
+	vertexBufferViewSphere.SizeInBytes = sizeof(VertexData) * (kSubdivision * kSubdivision * 6);
+	vertexBufferViewSphere.StrideInBytes = sizeof(VertexData);
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> materialResourceSphere = nullptr;
+	materialResourceSphere.Attach(CreateBufferResource(device.Get(), sizeof(Material)));
+
+	Material* materialDataSphere = nullptr;
+	materialResourceSphere->Map(0, nullptr, reinterpret_cast<void**>(&materialDataSphere));
+	materialDataSphere->color = {1, 1, 1, 1};
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> transformationResourceSphere = nullptr;
+	transformationResourceSphere.Attach(CreateBufferResource(device.Get(), sizeof(TransformationMatrix)));
+
+	VertexData* vertexDataSphere = nullptr;
+	vertexResourceSphere->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataSphere));
+
+    for(uint32_t latIndex = 0; latIndex < kSubdivision; ++latIndex){
+        float lat = -(std::numbers::pi_v<float> / 2.f) + (kLatEvery * float(latIndex));
+	    for(uint32_t lonIndex = 0; lonIndex < kSubdivision; ++lonIndex){
+            float lon = float(lonIndex) * kLonEvery;
+
+            uint32_t startIndex = (latIndex * kSubdivision + lonIndex) * 6;
+
+            Vector4 a = {
+                cosf(lat) * cosf(lon),
+                sinf(lat),
+                cosf(lat) * sinf(lon),
+                1
+            };
+
+            Vector4 b = {
+                cosf(lat + kLatEvery) * cosf(lon),
+                sinf(lat + kLatEvery),
+                cosf(lat + kLatEvery) * sinf(lon),
+                1
+            };
+
+            Vector4 c = {
+                cosf(lat) * cosf(lon + kLonEvery),
+                sinf(lat),
+                cosf(lat) * sinf(lon + kLonEvery),
+                1
+            };
+
+            Vector4 d = {
+                cosf(lat + kLatEvery) * cosf(lon + kLonEvery),
+                sinf(lat + kLatEvery),
+                cosf(lat) * sinf(lon + kLonEvery),
+                1
+            };
+
+            //u = x, v = y
+            //u = lon, v = lat
+            //v = 1 - latIndex / kSubdivision
+
+            vertexDataSphere[startIndex].position = a;
+            vertexDataSphere[startIndex].texcoord = {
+            	static_cast<float>(lonIndex) / static_cast<float>(kSubdivision),
+            	1 - static_cast<float>(latIndex) / static_cast<float>(kSubdivision)
+            };
+
+            vertexDataSphere[++startIndex].position = b;
+            vertexDataSphere[startIndex].texcoord = {
+            	static_cast<float>(lonIndex) / static_cast<float>(kSubdivision),
+            	1 - static_cast<float>(latIndex + 1) / static_cast<float>(kSubdivision)
+            };
+
+            vertexDataSphere[++startIndex].position = c;
+            vertexDataSphere[startIndex].texcoord = {
+            	static_cast<float>(lonIndex + 1) / static_cast<float>(kSubdivision),
+            	1 - static_cast<float>(latIndex) / static_cast<float>(kSubdivision)
+            };
+
+            vertexDataSphere[++startIndex].position = c;
+            vertexDataSphere[startIndex].texcoord = {
+            	static_cast<float>(lonIndex + 1) / static_cast<float>(kSubdivision),
+            	1 - static_cast<float>(latIndex) / static_cast<float>(kSubdivision)
+            };
+
+            vertexDataSphere[++startIndex].position = b;
+            vertexDataSphere[startIndex].texcoord = {
+            	static_cast<float>(lonIndex) / static_cast<float>(kSubdivision),
+            	1 - static_cast<float>(latIndex + 1) / static_cast<float>(kSubdivision)
+            };
+
+            vertexDataSphere[++startIndex].position = d;
+            vertexDataSphere[startIndex].texcoord = {
+            	static_cast<float>(lonIndex + 1) / static_cast<float>(kSubdivision),
+            	1 - static_cast<float>(latIndex + 1) / static_cast<float>(kSubdivision)
+            };
+	    }
+    }
+
+	
+
+	TransformationMatrix* transformationDataSphere = nullptr;
+	transformationResourceSphere->Map(0, nullptr, reinterpret_cast<void**>(&transformationDataSphere));
+	transformationDataSphere->WVP = MathUtils::Matrix::MakeIdentity();
+
+	Transform transformSphere {
+		{1,1,1},
+		{0,0,0},
+		{0,0,0}
+	};
 #pragma endregion
 
     //texture
@@ -815,12 +933,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             ImGui::ShowDemoWindow();
 #pragma region Update
             //Triangle
-            transform.rotate.y += 0.01f;
+            /*transform.rotate.y += 0.01f;*/
             Matrix4x4 cameraMatrix = MathUtils::Matrix::MakeAffineMatrix(Camera.scale, Camera.rotate, Camera.translate);
             Matrix4x4 viewMatrix = cameraMatrix.Inverse();
             Matrix4x4 projectionMatrix = MathUtils::Matrix::MakePerspectiveFovMatrix(0.45f, float(kClientWidth) / float(kClientHeight), 0.1f, 100);
-            Matrix4x4 wvp = MathUtils::Matrix::MakeAffineMatrix(transform.scale, transform.rotate, transform.translate) * viewMatrix * projectionMatrix;
-            transformationData->WVP = wvp;
+            /*Matrix4x4 wvp = MathUtils::Matrix::MakeAffineMatrix(transform.scale, transform.rotate, transform.translate) * viewMatrix * projectionMatrix;
+            transformationData->WVP = wvp;*/
+
+            //Sphere
+            Matrix4x4 wvp = MathUtils::Matrix::MakeAffineMatrix(transformSphere.scale, transformSphere.rotate, transformSphere.translate) * viewMatrix * projectionMatrix;
+            transformationDataSphere->WVP = wvp;
+
+            ImGui::Begin("Sphere");
+            ImGui::SliderFloat3("Rotate", &transformSphere.rotate.x, -10, 10);
+            ImGui::End();
 
             //Sprite
             Matrix4x4 viewMatrixSprite = MathUtils::Matrix::MakeIdentity();
@@ -866,12 +992,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #pragma region Draw
             //Triangle
-            commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+            /*commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
             commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
             commandList->SetGraphicsRootConstantBufferView(1, transformationResource->GetGPUVirtualAddress());
             commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
-            commandList->DrawInstanced(3 * 2, 1, 0, 0 );
+            commandList->DrawInstanced(3 * 2, 1, 0, 0 );*/
+
+            //Sphere
+            commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSphere);
+            commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            commandList->SetGraphicsRootConstantBufferView(0, materialResourceSphere->GetGPUVirtualAddress());
+            commandList->SetGraphicsRootConstantBufferView(1, transformationResourceSphere->GetGPUVirtualAddress());
+            commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
+            commandList->DrawInstanced(kSubdivision * kSubdivision, 1, 0, 0);
 
             //Sprite
             commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
