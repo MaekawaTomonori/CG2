@@ -42,6 +42,8 @@ struct VertexData{
 struct Material{
     Vector4 color;
     int32_t enableLighting;
+    float pad[3];
+    Matrix4x4 uvTransform;
 };
 
 struct TransformationMatrix{
@@ -800,6 +802,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     materialResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&materialDataSprite));
     materialDataSprite->color = {1,1,1,1};
     materialDataSprite->enableLighting = false;
+    materialDataSprite->uvTransform = MathUtils::Matrix::MakeIdentity();
 
     Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResourceSprite = nullptr;
     transformationMatrixResourceSprite.Attach(CreateBufferResource(device.Get(), sizeof(TransformationMatrix)));
@@ -808,6 +811,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     transformationMatrixSprite->WVP = MathUtils::Matrix::MakeIdentity();
 
     Transform transformSprite = {
+        {1,1,1},
+        {0,0,0},
+        {0,0,0}
+    };
+    Transform uvTransformSprite {
         {1,1,1},
         {0,0,0},
         {0,0,0}
@@ -835,6 +843,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	materialResourceSphere->Map(0, nullptr, reinterpret_cast<void**>(&materialDataSphere));
 	materialDataSphere->color = {1, 1, 1, 1};
     materialDataSphere->enableLighting = true;
+    materialDataSphere->uvTransform = MathUtils::Matrix::MakeIdentity();
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> transformationResourceSphere = nullptr;
 	transformationResourceSphere.Attach(CreateBufferResource(device.Get(), sizeof(TransformationMatrix)));
@@ -1056,15 +1065,26 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             ImGui::End();
 
             //Sprite
+            ImGui::Begin("Sprite Transform");
+            ImGui::DragFloat2("Scale", &transformSprite.scale.x, 0.1f);
+            ImGui::DragFloat2("Translate", &transformSprite.translate.x, 1);
+            ImGui::DragFloat2("uvTranslate", &uvTransformSprite.translate.x, 0.1f);
+            ImGui::DragFloat2("uvScale", &uvTransformSprite.scale.x, 0.01f);
+            ImGui::SliderAngle("uvRotate", &uvTransformSprite.rotate.z, -360, 360);
+            ImGui::End();
             Matrix4x4 viewMatrixSprite = MathUtils::Matrix::MakeIdentity();
             Matrix4x4 projectionMatrixSprite = MathUtils::Matrix::MakeOrthogonalMatrix(0, float(kClientWidth), 0, float(kClientHeight), 0, 100);
-            Matrix4x4 worldViewProjectionMatrixSprite = MathUtils::Matrix::MakeAffineMatrix(transformSprite.scale, transformSprite.rotate, transformSprite.translate) * viewMatrixSprite * projectionMatrixSprite;
+            transformationMatrixSprite->World = MathUtils::Matrix::MakeAffineMatrix(transformSprite.scale, transformSprite.rotate, transformSprite.translate);
+            Matrix4x4 worldViewProjectionMatrixSprite = transformationMatrixSprite->World * viewMatrixSprite * projectionMatrixSprite;
             transformationMatrixSprite->WVP = worldViewProjectionMatrixSprite;
 
-            ImGui::Begin("Sprite Transform");
-            ImGui::DragFloat2("Translate", &transformSprite.translate.x, 1);
-            ImGui::End();
+            Matrix4x4 uvTransformMatrix = MathUtils::Matrix::MakeScaleMatrix(uvTransformSprite.scale);
+            uvTransformMatrix = uvTransformMatrix * MathUtils::Matrix::MakeRotateZ(uvTransformSprite.rotate.z);
+            uvTransformMatrix = uvTransformMatrix * MathUtils::Matrix::MakeTranslateMatrix(uvTransformSprite.translate);
+            materialDataSprite->uvTransform = uvTransformMatrix;
 
+
+            // texture
             ImGui::Begin("Texture");
             ImGui::Checkbox("Use MonsterBall", &useMonsterBall);
             ImGui::End();
