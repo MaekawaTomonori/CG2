@@ -478,7 +478,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
     rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
-    D3D12_CPU_DESCRIPTOR_HANDLE rtvStartHandle = rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+    D3D12_CPU_DESCRIPTOR_HANDLE rtvStartHandle = GetCPUHandle(device.Get(), rtvDescriptorHeap.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 0);
     D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[2];
     rtvHandles[0] = rtvStartHandle;
     device->CreateRenderTargetView(swapChainResources[0].Get(), &rtvDesc, rtvHandles[0]);
@@ -723,7 +723,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     //};
     #pragma endregion
 
-    #pragma region Sprite
+#pragma region Sprite
     /*
      * VertexResource
      * VertexBufferView
@@ -887,7 +887,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     //texture
     DirectX::ScratchImage mipImages = LoadTexture("resources/uvChecker.png");
     const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
-    Microsoft::WRL::ComPtr<ID3D12Resource> textureResource = CreateTextureResource(device.Get(), metadata);
+    Microsoft::WRL::ComPtr<ID3D12Resource> textureResource = nullptr;
+	textureResource.Attach(CreateTextureResource(device.Get(), metadata));
     Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource;
 	intermediateResource.Attach(UploadTextureData(device.Get(), commandList.Get(), textureResource.Get(), mipImages));
 
@@ -900,7 +901,27 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU = GetCPUHandle(device.Get(), srvDescriptorHeap.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
     D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU = GetGPUHandle(device.Get(), srvDescriptorHeap.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
 
-    device->CreateShaderResourceView(textureResource.Get(), &srvDesc, textureSrvHandleCPU);
+	//2枚目
+    DirectX::ScratchImage mipImages2 = LoadTexture("resources/monsterBall.png");
+    const DirectX::TexMetadata& metadata2 = mipImages2.GetMetadata();
+    Microsoft::WRL::ComPtr<ID3D12Resource> textureResource2 = CreateTextureResource(device.Get(), metadata2);
+    Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource2;
+    intermediateResource2.Attach(UploadTextureData(device.Get(), commandList.Get(), textureResource2.Get(), mipImages2));
+
+	device->CreateShaderResourceView(textureResource.Get(), &srvDesc, textureSrvHandleCPU);
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc2 {};
+    srvDesc2.Format = metadata2.format;
+    srvDesc2.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc2.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc2.Texture2D.MipLevels = UINT(metadata2.mipLevels);
+
+    D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU2 = GetCPUHandle(device.Get(), srvDescriptorHeap.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2);
+    D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU2 = GetGPUHandle(device.Get(), srvDescriptorHeap.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2);
+
+    device->CreateShaderResourceView(textureResource2.Get(), &srvDesc2, textureSrvHandleCPU2);
+
+    bool useMonsterBall = true;
 
     //DepthStencilTexture
     Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource = nullptr;
@@ -957,6 +978,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             ImGui::Begin("Sprite Transform");
             ImGui::SliderFloat2("Translate", &transformSprite.translate.x, 0, 1000);
             ImGui::End();
+
+            ImGui::Begin("Texture");
+            ImGui::Checkbox("Use MonsterBall", &useMonsterBall);
+            ImGui::End();
+
 #pragma endregion
 
             ImGui::Render();
@@ -1004,13 +1030,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             commandList->SetGraphicsRootConstantBufferView(0, materialResourceSphere->GetGPUVirtualAddress());
             commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             commandList->SetGraphicsRootConstantBufferView(1, transformationResourceSphere->GetGPUVirtualAddress());
-            commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
+            commandList->SetGraphicsRootDescriptorTable(2, useMonsterBall ? textureSrvHandleGPU2 : textureSrvHandleGPU);
             commandList->DrawInstanced(kSubdivision * kSubdivision * 6, 1, 0, 0);
 
             //Sprite
             commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
             commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
-            commandList->DrawInstanced(6, 1, 0, 0);
+            commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
+        	commandList->DrawInstanced(6, 1, 0, 0);
 
 #pragma endregion
 
