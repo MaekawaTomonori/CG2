@@ -750,11 +750,29 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
      * CPUで扱うTransform
      */
     Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceSprite = nullptr;
-    vertexResourceSprite.Attach(CreateBufferResource(device.Get(), sizeof(VertexData) * 6));
+    vertexResourceSprite.Attach(CreateBufferResource(device.Get(), sizeof(VertexData) * 4));
     D3D12_VERTEX_BUFFER_VIEW vertexBufferViewSprite {};
     vertexBufferViewSprite.BufferLocation = vertexResourceSprite->GetGPUVirtualAddress();
-    vertexBufferViewSprite.SizeInBytes = sizeof(VertexData) * 6;
+    vertexBufferViewSprite.SizeInBytes = sizeof(VertexData) * 4;
     vertexBufferViewSprite.StrideInBytes = sizeof(VertexData);
+
+    Microsoft::WRL::ComPtr<ID3D12Resource> indexResourceSprite = nullptr;
+    indexResourceSprite.Attach(CreateBufferResource(device.Get(), sizeof(uint32_t) * 6));
+
+    D3D12_INDEX_BUFFER_VIEW indexBufferViewSprite {};
+    indexBufferViewSprite.BufferLocation = indexResourceSprite->GetGPUVirtualAddress();
+    indexBufferViewSprite.SizeInBytes = sizeof(uint32_t) * 6;
+    indexBufferViewSprite.Format = DXGI_FORMAT_R32_UINT;
+
+    uint32_t* indexDataSprite = nullptr;
+    indexResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&indexDataSprite));
+
+    indexDataSprite[0] = 0;
+    indexDataSprite[1] = 1;
+    indexDataSprite[2] = 2;
+    indexDataSprite[3] = 1;
+    indexDataSprite[4] = 3;
+    indexDataSprite[5] = 2;
 
     VertexData* vertexDataSprite = nullptr;
     vertexResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataSprite));
@@ -762,23 +780,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     vertexDataSprite[0].position = {0, 360, 0, 1};
     vertexDataSprite[1].position = {0, 0, 0, 1};
     vertexDataSprite[2].position = {640, 360, 0, 1};
-    vertexDataSprite[3].position = {0, 0, 0, 1};
-    vertexDataSprite[4].position = {640, 0, 0, 1};
-    vertexDataSprite[5].position = {640, 360, 0, 1};
+    vertexDataSprite[3].position = {640, 0, 0, 1};
 
     vertexDataSprite[0].texcoord = {0, 1};
     vertexDataSprite[1].texcoord = {0, 0};
     vertexDataSprite[2].texcoord = {1, 1};
-    vertexDataSprite[3].texcoord = {0, 0};
-    vertexDataSprite[4].texcoord = {1, 0};
-    vertexDataSprite[5].texcoord = {1, 1};
+    vertexDataSprite[3].texcoord = {1, 0};
 
     vertexDataSprite[0].normal = {0,0,-1};
     vertexDataSprite[1].normal = {0,0,-1};
     vertexDataSprite[2].normal = {0,0,-1};
     vertexDataSprite[3].normal = {0,0,-1};
-    vertexDataSprite[4].normal = {0,0,-1};
-    vertexDataSprite[5].normal = {0,0,-1};
 
     //material
     Microsoft::WRL::ComPtr<ID3D12Resource> materialResourceSprite = nullptr;
@@ -1040,7 +1052,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             transformationDataSphere->WVP = wvp;
 
             ImGui::Begin("Sphere");
-            ImGui::SliderFloat3("Rotate", &transformSphere.rotate.x, -10, 10);
+            ImGui::DragFloat3("Rotate", &transformSphere.rotate.x, 0.1f);
             ImGui::End();
 
             //Sprite
@@ -1050,7 +1062,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             transformationMatrixSprite->WVP = worldViewProjectionMatrixSprite;
 
             ImGui::Begin("Sprite Transform");
-            ImGui::SliderFloat2("Translate", &transformSprite.translate.x, 0, 1000);
+            ImGui::DragFloat2("Translate", &transformSprite.translate.x, 1);
             ImGui::End();
 
             ImGui::Begin("Texture");
@@ -1116,10 +1128,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
             //Sprite
             commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
+            commandList->IASetIndexBuffer(&indexBufferViewSprite);
             commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
             commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
             commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
-        	commandList->DrawInstanced(6, 1, 0, 0);
+        	commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
 #pragma endregion
 
