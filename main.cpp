@@ -769,7 +769,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #pragma region Sphere
     //Sphere
-    constexpr uint32_t kSubdivision = 4;
+    constexpr uint32_t kSubdivision = 16;
     const float kLatEvery = std::numbers::pi_v<float> / kSubdivision;
     const float kLonEvery = (2 * std::numbers::pi_v<float>) / kSubdivision;
 
@@ -831,6 +831,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
             //u = x, v = y
             //u = lon, v = lat
+            //lon = x lat = y
+            //u = lonIndex / kSubdivision
             //v = 1 - latIndex / kSubdivision
 
             vertexDataSphere[startIndex].position = a;
@@ -870,8 +872,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             };
 	    }
     }
-
-	
 
 	TransformationMatrix* transformationDataSphere = nullptr;
 	transformationResourceSphere->Map(0, nullptr, reinterpret_cast<void**>(&transformationDataSphere));
@@ -941,7 +941,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             transformationData->WVP = wvp;*/
 
             //Sphere
-            Matrix4x4 wvp = MathUtils::Matrix::MakeAffineMatrix(transformSphere.scale, transformSphere.rotate, transformSphere.translate) * viewMatrix * projectionMatrix;
+            Matrix4x4 wvp = MathUtils::Matrix::MakeAffineMatrix(transformSphere.scale, transformSphere.rotate, transformSphere.translate) * (viewMatrix * projectionMatrix);
             transformationDataSphere->WVP = wvp;
 
             ImGui::Begin("Sphere");
@@ -1000,12 +1000,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             commandList->DrawInstanced(3 * 2, 1, 0, 0 );*/
 
             //Sphere
-            commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSphere);
             commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSphere);
             commandList->SetGraphicsRootConstantBufferView(0, materialResourceSphere->GetGPUVirtualAddress());
             commandList->SetGraphicsRootConstantBufferView(1, transformationResourceSphere->GetGPUVirtualAddress());
             commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
-            commandList->DrawInstanced(kSubdivision * kSubdivision, 1, 0, 0);
+            commandList->DrawInstanced(kSubdivision * kSubdivision * 6, 1, 0, 0);
 
             //Sprite
             commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
