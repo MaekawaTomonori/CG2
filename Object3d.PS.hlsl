@@ -1,6 +1,15 @@
 ﻿#include "Object3d.hlsli"
+
+struct DirectionalLight{
+    float32_t4 color;
+    float32_t3 direction;
+    float intensity;
+};
+ConstantBuffer<DirectionalLight> gDirectionalLight : register(b1);
+
 struct Material{
     float32_t4 color;
+    int32_t enableLighting;
 };
 ConstantBuffer<Material> gMaterial : register(b0); //"g"Material = global
 
@@ -14,6 +23,11 @@ struct PixelShaderOutput{
 PixelShaderOutput main(VertexShaderOutput input) {
     PixelShaderOutput output;
     float32_t4 texColor = gTexture.Sample(gSampler, input.texcoord);
-    output.color = gMaterial.color * texColor;
+    if(gMaterial.enableLighting != 0){
+		float cos = saturate(dot(normalize(input.normal), -gDirectionalLight.direction));
+        output.color = gMaterial.color * texColor * gDirectionalLight.color * cos * gDirectionalLight.intensity;
+	} else{
+		output.color = gMaterial.color * texColor;
+    }
     return output;
 }
