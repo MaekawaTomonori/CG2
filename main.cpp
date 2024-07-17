@@ -795,37 +795,37 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	vertexResourceSphere->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataSphere));
 
     for(uint32_t latIndex = 0; latIndex < kSubdivision; ++latIndex){
-        float lat = -(std::numbers::pi_v<float> / 2.f) + (kLatEvery * float(latIndex));
+        float lat = -MathUtils::F_PI / 2.f + kLatEvery * float(latIndex);
 	    for(uint32_t lonIndex = 0; lonIndex < kSubdivision; ++lonIndex){
             float lon = float(lonIndex) * kLonEvery;
 
             uint32_t startIndex = (latIndex * kSubdivision + lonIndex) * 6;
 
             Vector4 a = {
-                cosf(lat) * cosf(lon),
-                sinf(lat),
-                cosf(lat) * sinf(lon),
+                std::cosf(lat) * std::cosf(lon),
+                std::sinf(lat),
+                std::cosf(lat) * std::sinf(lon),
                 1
             };
 
             Vector4 b = {
-                cosf(lat + kLatEvery) * cosf(lon),
-                sinf(lat + kLatEvery),
-                cosf(lat + kLatEvery) * sinf(lon),
+                std::cosf(lat + kLatEvery) * std::cosf(lon),
+                std::sinf(lat + kLatEvery),
+                std::cosf(lat + kLatEvery) * std::sinf(lon),
                 1
             };
 
             Vector4 c = {
-                cosf(lat) * cosf(lon + kLonEvery),
-                sinf(lat),
-                cosf(lat) * sinf(lon + kLonEvery),
+                std::cosf(lat) * std::cosf(lon + kLonEvery),
+                std::sinf(lat),
+                std::cosf(lat) * std::sinf(lon + kLonEvery),
                 1
             };
 
             Vector4 d = {
-                cosf(lat + kLatEvery) * cosf(lon + kLonEvery),
-                sinf(lat + kLatEvery),
-                cosf(lat) * sinf(lon + kLonEvery),
+                std::cosf(lat + kLatEvery) * std::cosf(lon + kLonEvery),
+                std::sinf(lat + kLatEvery),
+                std::cosf(lat) * std::sinf(lon + kLonEvery),
                 1
             };
 
