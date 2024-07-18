@@ -9,11 +9,13 @@
 #include <dxgidebug.h>
 #include <dxcapi.h>
 #include <numbers>
+#include <fstream>
+#include <sstream>
+#include <algorithm>
+#include <array>
 
 //externals
-#include <DirectXMath.h>
-
-#include "Vector2.h"
+#include "DirectXMath.h"
 #include "DirectXTex/d3dx12.h"
 #include "DirectXTex/DirectXTex.h"
 #include "imgui/imgui.h"
@@ -24,13 +26,13 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 #include "MathUtils.h"
 #include "Matrix.h"
 #include "Transform.h"
+#include "Vector2.h"
 #include "Vector4.h"
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "dxcompiler.lib")
-
 
 
 struct VertexData{
@@ -55,6 +57,10 @@ struct DirectionalLight{
     Vector4 color;
     Vector3 direction;
     float intensity;
+};
+
+struct ModelData{
+    std::vector<VertexData> vertices;
 };
 
 struct D3DLeakChecker{
@@ -316,6 +322,67 @@ ID3D12Resource* CreateDepthStencilResource(ID3D12Device* device, int32_t width, 
     assert(SUCCEEDED(hr));
 
     return resource;
+}
+
+ModelData LoadObjFile(const std::string& directoryPath, const std::string& fileName) {
+    ModelData modelData {};
+    std::vector<Vector4> positions;
+    std::vector<Vector3> normals;
+    std::vector<Vector2> texcoords;
+    std::string line;
+
+    std::ifstream file(directoryPath + "/" + fileName);
+    assert(file.is_open());
+
+    while (std::getline(file, line)){
+        std::string identifier;
+        std::istringstream s(line);
+        s >> identifier;
+
+        if (identifier == "v"){
+            Vector4 position {};
+            s >> position.x >> position.y >> position.z;
+            position.w = 1;
+            positions.push_back(position);
+        } else if (identifier == "vt"){
+            Vector2 texcoord {};
+            s >> texcoord.x >> texcoord.y;
+            texcoords.push_back(texcoord);
+        }else if (identifier == "vn"){
+			Vector3 normal {};
+			s >> normal.x >> normal.y >> normal.z;
+			normals.push_back(normal);
+		} else if (identifier == "f"){
+            VertexData triangle[3];
+            for(int32_t faceVertex = 0; faceVertex < 3; ++faceVertex){
+                std::string vertexDefinition;
+                s >> vertexDefinition;
+
+                std::istringstream v(vertexDefinition);
+                uint32_t elementIndices[3];
+
+                for(int32_t element = 0; element < 3; ++element){
+                    std::string index;
+                    std::getline(v, index, '/');
+                    elementIndices[element] = std::stoi(index);
+                }
+
+                Vector4 position = positions[elementIndices[0] - 1];
+                Vector2 texcoord = texcoords[elementIndices[1] - 1];
+                Vector3 normal = normals[elementIndices[2] - 1];
+
+                position.x *= -1;
+                normal.x *= -1;
+
+                triangle[faceVertex] = {position, texcoord, normal};
+            }
+            modelData.vertices.push_back(triangle[2]);
+            modelData.vertices.push_back(triangle[1]);
+            modelData.vertices.push_back(triangle[0]);
+		}
+    }
+
+    return modelData;
 }
 
 //Rect
@@ -694,12 +761,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart()
     );
 
-	#pragma region Triangle
+#pragma region Triangle
     //Triangle
     //Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = nullptr;
     //vertexResource.Attach(CreateBufferResource(device.Get(), sizeof(VertexData) * 3 * 2));
-    //Microsoft::WRL::ComPtr<ID3D12Resource> materialResource = nullptr;
-    //materialResource.Attach(CreateBufferResource(device.Get(), sizeof(Material)));
+    Microsoft::WRL::ComPtr<ID3D12Resource> materialResource = nullptr;
+    materialResource.Attach(CreateBufferResource(device.Get(), sizeof(Material)));
     //Microsoft::WRL::ComPtr<ID3D12Resource> transformationResource = nullptr;
     //transformationResource.Attach(CreateBufferResource(device.Get(), sizeof(TransformationMatrix)));
 
@@ -729,9 +796,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     //vertexData[4].texcoord = {0.5f, 0};
     //vertexData[5].texcoord = {1,1};
 
-    //Material* materialData = nullptr;
-    //materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
-    //materialData->color = {1, 1, 1, 1};
+    Material* materialData = nullptr;
+    materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
+    materialData->color = {1, 1, 1, 1};
+    materialData->enableLighting = true;
+    materialData->uvTransform = MathUtils::Matrix::MakeIdentity();
 
     //TransformationMatrix* transformationData = nullptr;
     //transformationResource->Map(0, nullptr, reinterpret_cast<void**>(&transformationData));
@@ -823,7 +892,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region Sphere
-    //Sphere
+    /*Sphere
     constexpr uint32_t kSubdivision = 16;
     const float kLatEvery = std::numbers::pi_v<float> / kSubdivision;
     const float kLonEvery = (2 * std::numbers::pi_v<float>) / kSubdivision;
@@ -886,11 +955,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
                 1
             };
 
-            //u = x, v = y
-            //u = lon, v = lat
-            //lon = x lat = y
-            //u = lonIndex / kSubdivision
-            //v = 1 - latIndex / kSubdivision
+            u = x, v = y
+            u = lon, v = lat
+            lon = x lat = y
+            u = lonIndex / kSubdivision
+            v = 1 - latIndex / kSubdivision
 
             vertexDataSphere[startIndex].position = a;
             vertexDataSphere[startIndex].texcoord = {
@@ -963,7 +1032,34 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		{1,1,1},
 		{0,0,0},
 		{0,0,0}
-	};
+	};*/
+#pragma endregion
+
+#pragma region Model
+    ModelData modelData = LoadObjFile("resources", "plane.obj");
+    Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = nullptr;
+    vertexResource.Attach(CreateBufferResource(device.Get(), sizeof(VertexData)* modelData.vertices.size()));
+
+    D3D12_VERTEX_BUFFER_VIEW vertexBufferView {};
+    vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
+    vertexBufferView.SizeInBytes = UINT(sizeof(VertexData) * modelData.vertices.size());
+    vertexBufferView.StrideInBytes = sizeof(VertexData);
+
+    VertexData* vertexData = nullptr;
+    vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
+    memcpy(vertexData, modelData.vertices.data(), sizeof(VertexData)* modelData.vertices.size());
+
+    Microsoft::WRL::ComPtr<ID3D12Resource> transformationResource = nullptr;
+    transformationResource.Attach(CreateBufferResource(device.Get(), sizeof(TransformationMatrix)));
+
+    TransformationMatrix* transformationData = nullptr;
+    transformationResource->Map(0, nullptr, reinterpret_cast<void**>(&transformationData));
+
+    Transform modelTransform {
+        {1,1,1},
+        {0,0,0},
+        {0,0,0}
+    };
 #pragma endregion
 
     //texture
@@ -1056,13 +1152,25 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             transformationData->WVP = wvp;*/
 
             //Sphere
-            transformationDataSphere->World = MathUtils::Matrix::MakeAffineMatrix(transformSphere.scale, transformSphere.rotate, transformSphere.translate);
-            Matrix4x4 wvp = transformationDataSphere->World * (viewMatrix * projectionMatrix);
-            transformationDataSphere->WVP = wvp;
+            //transformationDataSphere->World = MathUtils::Matrix::MakeAffineMatrix(transformSphere.scale, transformSphere.rotate, transformSphere.translate);
+            //Matrix4x4 wvp = transformationDataSphere->World * (viewMatrix * projectionMatrix);
+            //transformationDataSphere->WVP = wvp;
 
-            ImGui::Begin("Sphere");
-            ImGui::DragFloat3("Rotate", &transformSphere.rotate.x, 0.1f);
+            //ImGui::Begin("Sphere");
+            //ImGui::DragFloat3("Rotate", &transformSphere.rotate.x, 0.1f);
+            //ImGui::End();
+
+
+            //Model
+            ImGui::Begin("Model");
+            ImGui::DragFloat3("Transform", &modelTransform.translate.x, 1);
+            ImGui::SliderAngle("Rotate.X", &modelTransform.rotate.x, -360, 360);
+            ImGui::SliderAngle("Rotate.Y", &modelTransform.rotate.y, -360, 360);
+            ImGui::SliderAngle("Rotate.Z", &modelTransform.rotate.z, -360, 360);
             ImGui::End();
+
+            transformationData->World = MathUtils::Matrix::MakeAffineMatrix(modelTransform.scale, modelTransform.rotate, modelTransform.translate);
+            transformationData->WVP = transformationData->World * viewMatrix * projectionMatrix;
 
             //Sprite
             ImGui::Begin("Sprite Transform");
@@ -1131,28 +1239,33 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma region Draw
             //Triangle
             /*commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
-            commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);*/
             commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
-            commandList->SetGraphicsRootConstantBufferView(1, transformationResource->GetGPUVirtualAddress());
+            //commandList->SetGraphicsRootConstantBufferView(1, transformationResource->GetGPUVirtualAddress());
             commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
-            commandList->DrawInstanced(3 * 2, 1, 0, 0 );*/
+            //commandList->DrawInstanced(3 * 2, 1, 0, 0 );
 
             //Sphere
-            commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSphere);
-            commandList->SetGraphicsRootConstantBufferView(0, materialResourceSphere->GetGPUVirtualAddress());
+            //commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSphere);
+            //commandList->SetGraphicsRootConstantBufferView(0, materialResourceSphere->GetGPUVirtualAddress());
             commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-            commandList->SetGraphicsRootConstantBufferView(1, transformationResourceSphere->GetGPUVirtualAddress());
-            commandList->SetGraphicsRootDescriptorTable(2, useMonsterBall ? textureSrvHandleGPU2 : textureSrvHandleGPU);
+            //commandList->SetGraphicsRootConstantBufferView(1, transformationResourceSphere->GetGPUVirtualAddress());
+            //commandList->SetGraphicsRootDescriptorTable(2, useMonsterBall ? textureSrvHandleGPU2 : textureSrvHandleGPU);
             commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
-            commandList->DrawInstanced(kSubdivision * kSubdivision * 6, 1, 0, 0);
+            /*commandList->DrawInstanced(kSubdivision * kSubdivision * 6, 1, 0, 0);*/
+
+            //Model
+            commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+            commandList->SetGraphicsRootConstantBufferView(1, transformationResource->GetGPUVirtualAddress());
+            commandList->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);
 
             //Sprite
-            commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
+            /*commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
             commandList->IASetIndexBuffer(&indexBufferViewSprite);
             commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
             commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
             commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
-        	commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
+        	commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);*/
 
 #pragma endregion
 
