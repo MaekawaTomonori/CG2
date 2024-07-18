@@ -59,8 +59,13 @@ struct DirectionalLight{
     float intensity;
 };
 
+struct MaterialData{
+    std::string textureFilePath;
+};
+
 struct ModelData{
     std::vector<VertexData> vertices;
+    MaterialData materialData;
 };
 
 struct D3DLeakChecker{
@@ -324,6 +329,26 @@ ID3D12Resource* CreateDepthStencilResource(ID3D12Device* device, int32_t width, 
     return resource;
 }
 
+MaterialData LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& fileName) {
+    MaterialData materialData {};
+    std::string line;
+    std::ifstream file(directoryPath + "/" + fileName);
+    assert(file.is_open());
+    while (std::getline(file, line)){
+        std::string identifier;
+        std::istringstream s(line);
+        s >> identifier;
+
+        if(identifier == "map_Kd"){
+            std::string textureFileName;
+            s >> textureFileName;
+
+            materialData.textureFilePath = directoryPath + "/" + textureFileName;
+        }
+    }
+    return materialData;
+}
+
 ModelData LoadObjFile(const std::string& directoryPath, const std::string& fileName) {
     ModelData modelData {};
     std::vector<Vector4> positions;
@@ -372,6 +397,7 @@ ModelData LoadObjFile(const std::string& directoryPath, const std::string& fileN
                 Vector3 normal = normals[elementIndices[2] - 1];
 
                 position.x *= -1;
+                texcoord.y = 1 - texcoord.y;
                 normal.x *= -1;
 
                 triangle[faceVertex] = {position, texcoord, normal};
@@ -379,7 +405,12 @@ ModelData LoadObjFile(const std::string& directoryPath, const std::string& fileN
             modelData.vertices.push_back(triangle[2]);
             modelData.vertices.push_back(triangle[1]);
             modelData.vertices.push_back(triangle[0]);
-		}
+		}else if (identifier == "mtllib") {
+            std::string materialFileName;
+            s >> materialFileName;
+
+            modelData.materialData = LoadMaterialTemplateFile(directoryPath, materialFileName);
+        }
     }
 
     return modelData;
@@ -1036,7 +1067,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region Model
-    ModelData modelData = LoadObjFile("resources", "plane.obj");
+    ModelData modelData = LoadObjFile("resources", "axis.obj");
     Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = nullptr;
     vertexResource.Attach(CreateBufferResource(device.Get(), sizeof(VertexData)* modelData.vertices.size()));
 
@@ -1080,7 +1111,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU = GetGPUHandle(device.Get(), srvDescriptorHeap.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
 
 	//2枚目
-    DirectX::ScratchImage mipImages2 = LoadTexture("resources/monsterBall.png");
+    DirectX::ScratchImage mipImages2 = LoadTexture(modelData.materialData.textureFilePath);
     const DirectX::TexMetadata& metadata2 = mipImages2.GetMetadata();
     Microsoft::WRL::ComPtr<ID3D12Resource> textureResource2 = CreateTextureResource(device.Get(), metadata2);
     Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource2;
@@ -1242,7 +1273,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);*/
             commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
             //commandList->SetGraphicsRootConstantBufferView(1, transformationResource->GetGPUVirtualAddress());
-            commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
+            commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU2);
             //commandList->DrawInstanced(3 * 2, 1, 0, 0 );
 
             //Sphere
