@@ -364,7 +364,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     ShowWindow(hwnd, SW_SHOW);
 
     //=================================
-
     //Initialize DirectX and Registering GPU
 
     Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory = nullptr;
