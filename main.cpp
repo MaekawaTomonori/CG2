@@ -128,7 +128,7 @@ void Log(const std::wstring& message) {
     OutputDebugStringA(ConvertString(message).c_str());
 }
 
-IDxcBlob* CompileShader(
+Microsoft::WRL::ComPtr<IDxcBlob> CompileShader(
     const std::wstring& filePath,
     const wchar_t* profile,
     IDxcUtils* utils,
@@ -176,10 +176,10 @@ IDxcBlob* CompileShader(
 
     Log(ConvertString(std::format(L"Compile Succeeded, Path : {}, Profile : {}\n", filePath, profile)));
 
-    return shaderBlob.Get();
+    return shaderBlob;
 }
 
-ID3D12Resource* CreateBufferResource(ID3D12Device* device, size_t sizeInBytes) {
+Microsoft::WRL::ComPtr<ID3D12Resource> CreateBufferResource(Microsoft::WRL::ComPtr<ID3D12Device> device, size_t sizeInBytes) {
     D3D12_HEAP_PROPERTIES uploadHeapProperties {};
     uploadHeapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
 
@@ -203,10 +203,10 @@ ID3D12Resource* CreateBufferResource(ID3D12Device* device, size_t sizeInBytes) {
 
     assert(SUCCEEDED(hR));
 
-    return materialResource.Get();
+    return materialResource;
 }
 
-ID3D12DescriptorHeap* CreateDescriptorHeap(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT descriptorsNum, bool shaderVisible) {
+Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(Microsoft::WRL::ComPtr<ID3D12Device> device, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT descriptorsNum, bool shaderVisible) {
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> heap = nullptr;
     D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
     heapDesc.Type = type;
@@ -217,7 +217,7 @@ ID3D12DescriptorHeap* CreateDescriptorHeap(ID3D12Device* device, D3D12_DESCRIPTO
     HRESULT hr = device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&heap));
     assert(SUCCEEDED(hr));
 
-    return heap.Get();
+    return heap;
 }
 
 
@@ -234,7 +234,7 @@ DirectX::ScratchImage LoadTexture(const std::string& filePath) {
     return mipImages;
 }
 
-ID3D12Resource* CreateTextureResource(ID3D12Device* device, const DirectX::TexMetadata& metadata) {
+Microsoft::WRL::ComPtr<ID3D12Resource> CreateTextureResource(Microsoft::WRL::ComPtr<ID3D12Device> device, const DirectX::TexMetadata& metadata) {
     D3D12_RESOURCE_DESC resourceDesc {};
     resourceDesc.Width = UINT(metadata.width);
     resourceDesc.Height = UINT(metadata.height);
@@ -247,7 +247,7 @@ ID3D12Resource* CreateTextureResource(ID3D12Device* device, const DirectX::TexMe
     D3D12_HEAP_PROPERTIES heapProperties {};
     heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
 
-    ID3D12Resource* resource = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12Resource> resource = nullptr;
     HRESULT hr = device->CreateCommittedResource(
         &heapProperties,
         D3D12_HEAP_FLAG_NONE,
@@ -262,39 +262,39 @@ ID3D12Resource* CreateTextureResource(ID3D12Device* device, const DirectX::TexMe
 }
 
 [[nodiscard]]
-ID3D12Resource* UploadTextureData(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, ID3D12Resource* texture, const DirectX::ScratchImage& mipImages) {
+Microsoft::WRL::ComPtr<ID3D12Resource> UploadTextureData(Microsoft::WRL::ComPtr<ID3D12Device> device, Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandList, Microsoft::WRL::ComPtr<ID3D12Resource> texture, const DirectX::ScratchImage& mipImages) {
 
     std::vector<D3D12_SUBRESOURCE_DATA> subresources;
-    DirectX::PrepareUpload(device, mipImages.GetImages(), mipImages.GetImageCount(), mipImages.GetMetadata(), subresources);
-    uint64_t intermediateSize = GetRequiredIntermediateSize(texture, 0, UINT(mipImages.GetImageCount()));
-    Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource = CreateBufferResource(device, intermediateSize);
-    UpdateSubresources(commandList, texture, intermediateResource.Get(), 0, 0, UINT(subresources.size()), subresources.data());
+    DirectX::PrepareUpload(device.Get(), mipImages.GetImages(), mipImages.GetImageCount(), mipImages.GetMetadata(), subresources);
+    uint64_t intermediateSize = GetRequiredIntermediateSize(texture.Get(), 0, UINT(mipImages.GetImageCount()));
+    Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource = CreateBufferResource(device.Get(), intermediateSize);
+    UpdateSubresources(commandList.Get(), texture.Get(), intermediateResource.Get(), 0, 0, UINT(subresources.size()), subresources.data());
 
     D3D12_RESOURCE_BARRIER barrier {};
     barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
     barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-    barrier.Transition.pResource = texture;
+    barrier.Transition.pResource = texture.Get();
     barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
     barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_GENERIC_READ;
 
     commandList->ResourceBarrier(1, &barrier);
-    return intermediateResource.Get();
+    return intermediateResource;
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE GetCPUHandle(ID3D12Device* device, ID3D12DescriptorHeap* heap, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t index) {
+D3D12_CPU_DESCRIPTOR_HANDLE GetCPUHandle(Microsoft::WRL::ComPtr<ID3D12Device> device, Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> heap, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t index) {
     D3D12_CPU_DESCRIPTOR_HANDLE handle = heap->GetCPUDescriptorHandleForHeapStart();
     handle.ptr += device->GetDescriptorHandleIncrementSize(type) * index;
     return handle;
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(ID3D12Device* device, ID3D12DescriptorHeap* heap, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t index) {
+D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(Microsoft::WRL::ComPtr<ID3D12Device> device, Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> heap, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t index) {
     D3D12_GPU_DESCRIPTOR_HANDLE handle = heap->GetGPUDescriptorHandleForHeapStart();
     handle.ptr += device->GetDescriptorHandleIncrementSize(type) * index;
     return handle;
 }
 
-ID3D12Resource* CreateDepthStencilResource(ID3D12Device* device, int32_t width, int32_t height) {
+Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthStencilResource(const Microsoft::WRL::ComPtr<ID3D12Device>& device, int32_t width, int32_t height) {
     D3D12_RESOURCE_DESC resourceDesc {};
     resourceDesc.Width = width;
     resourceDesc.Height = height;
@@ -323,7 +323,7 @@ ID3D12Resource* CreateDepthStencilResource(ID3D12Device* device, int32_t width, 
     );
     assert(SUCCEEDED(hr));
 
-    return resource.Get();
+    return resource;
 }
 
 MaterialData LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& fileName) {
@@ -793,8 +793,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     //Triangle
     //Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = nullptr;
     //vertexResource.Attach(CreateBufferResource(device.Get(), sizeof(VertexData) * 3 * 2));
-    Microsoft::WRL::ComPtr<ID3D12Resource> materialResource = nullptr;
-    materialResource.Attach(CreateBufferResource(device.Get(), sizeof(Material)));
+    Microsoft::WRL::ComPtr<ID3D12Resource> materialResource = (CreateBufferResource(device, sizeof(Material)));
     //Microsoft::WRL::ComPtr<ID3D12Resource> transformationResource = nullptr;
     //transformationResource.Attach(CreateBufferResource(device.Get(), sizeof(TransformationMatrix)));
 
@@ -848,15 +847,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
      * TransformMatrix用のCBV
      * CPUで扱うTransform
      */
-    Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceSprite = nullptr;
-    vertexResourceSprite.Attach(CreateBufferResource(device.Get(), sizeof(VertexData) * 4));
+    Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceSprite = (CreateBufferResource(device.Get(), sizeof(VertexData) * 4));
     D3D12_VERTEX_BUFFER_VIEW vertexBufferViewSprite {};
     vertexBufferViewSprite.BufferLocation = vertexResourceSprite->GetGPUVirtualAddress();
     vertexBufferViewSprite.SizeInBytes = sizeof(VertexData) * 4;
     vertexBufferViewSprite.StrideInBytes = sizeof(VertexData);
 
-    Microsoft::WRL::ComPtr<ID3D12Resource> indexResourceSprite = nullptr;
-    indexResourceSprite.Attach(CreateBufferResource(device.Get(), sizeof(uint32_t) * 6));
+    Microsoft::WRL::ComPtr<ID3D12Resource> indexResourceSprite = (CreateBufferResource(device.Get(), sizeof(uint32_t) * 6));
 
     D3D12_INDEX_BUFFER_VIEW indexBufferViewSprite {};
     indexBufferViewSprite.BufferLocation = indexResourceSprite->GetGPUVirtualAddress();
@@ -892,8 +889,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     vertexDataSprite[3].normal = {0,0,-1};
 
     //material
-    Microsoft::WRL::ComPtr<ID3D12Resource> materialResourceSprite = nullptr;
-    materialResourceSprite.Attach(CreateBufferResource(device.Get(), sizeof(Material)));
+    Microsoft::WRL::ComPtr<ID3D12Resource> materialResourceSprite = (CreateBufferResource(device.Get(), sizeof(Material)));
 
     Material* materialDataSprite = nullptr;
     materialResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&materialDataSprite));
@@ -901,8 +897,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     materialDataSprite->enableLighting = false;
     materialDataSprite->uvTransform = MathUtils::Matrix::MakeIdentity();
 
-    Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResourceSprite = nullptr;
-    transformationMatrixResourceSprite.Attach(CreateBufferResource(device.Get(), sizeof(TransformationMatrix)));
+    Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResourceSprite = (CreateBufferResource(device.Get(), sizeof(TransformationMatrix)));
     TransformationMatrix* transformationMatrixSprite = nullptr;
     transformationMatrixResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixSprite));
     transformationMatrixSprite->WVP = MathUtils::Matrix::MakeIdentity();
@@ -1065,8 +1060,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #pragma region Model
     ModelData modelData = LoadObjFile("resources", "axis.obj");
-    Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = nullptr;
-    vertexResource.Attach(CreateBufferResource(device.Get(), sizeof(VertexData)* modelData.vertices.size()));
+    Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = (CreateBufferResource(device.Get(), sizeof(VertexData)* modelData.vertices.size()));
 
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView {};
     vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
@@ -1077,8 +1071,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
     memcpy(vertexData, modelData.vertices.data(), sizeof(VertexData)* modelData.vertices.size());
 
-    Microsoft::WRL::ComPtr<ID3D12Resource> transformationResource = nullptr;
-    transformationResource.Attach(CreateBufferResource(device.Get(), sizeof(TransformationMatrix)));
+    Microsoft::WRL::ComPtr<ID3D12Resource> transformationResource = (CreateBufferResource(device.Get(), sizeof(TransformationMatrix)));
 
     TransformationMatrix* transformationData = nullptr;
     transformationResource->Map(0, nullptr, reinterpret_cast<void**>(&transformationData));
@@ -1093,10 +1086,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     //texture
     DirectX::ScratchImage mipImages = LoadTexture("resources/uvChecker.png");
     const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
-    Microsoft::WRL::ComPtr<ID3D12Resource> textureResource = nullptr;
-	textureResource.Attach(CreateTextureResource(device.Get(), metadata));
-    Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource;
-	intermediateResource.Attach(UploadTextureData(device.Get(), commandList.Get(), textureResource.Get(), mipImages));
+    Microsoft::WRL::ComPtr<ID3D12Resource> textureResource = (CreateTextureResource(device.Get(), metadata));
+    Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource = (UploadTextureData(device.Get(), commandList.Get(), textureResource.Get(), mipImages));
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc {};
     srvDesc.Format = metadata.format;
@@ -1111,8 +1102,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     DirectX::ScratchImage mipImages2 = LoadTexture(modelData.materialData.textureFilePath);
     const DirectX::TexMetadata& metadata2 = mipImages2.GetMetadata();
     Microsoft::WRL::ComPtr<ID3D12Resource> textureResource2 = CreateTextureResource(device.Get(), metadata2);
-    Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource2;
-    intermediateResource2.Attach(UploadTextureData(device.Get(), commandList.Get(), textureResource2.Get(), mipImages2));
+    Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource2 = (UploadTextureData(device.Get(), commandList.Get(), textureResource2.Get(), mipImages2));
 
 	device->CreateShaderResourceView(textureResource.Get(), &srvDesc, textureSrvHandleCPU);
 
@@ -1130,12 +1120,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     bool useMonsterBall = true;
 
     //DepthStencilTexture
-    Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource = nullptr;
-    depthStencilResource.Attach(CreateDepthStencilResource(device.Get(), kClientWidth, kClientHeight));
+    Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource = (CreateDepthStencilResource(device.Get(), kClientWidth, kClientHeight));
 
     //DepthStencilView
-    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap = nullptr;
-    dsvDescriptorHeap.Attach(CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false));
+    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap = (CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false));
 
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc {};
     dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
@@ -1144,8 +1132,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     device->CreateDepthStencilView(depthStencilResource.Get(), &dsvDesc, dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
     //Light
-    Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource = nullptr;
-    directionalLightResource.Attach(CreateBufferResource(device.Get(), sizeof(DirectionalLight)));
+    Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource = (CreateBufferResource(device.Get(), sizeof(DirectionalLight)));
 
     DirectionalLight* directionalLight = nullptr;
 
@@ -1191,7 +1178,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
             //Model
             ImGui::Begin("Model");
-            ImGui::DragFloat3("Transform", &modelTransform.translate.x, 1);
+            ImGui::DragFloat3("Transform", &modelTransform.translate.x, 0.01f);
             ImGui::SliderAngle("Rotate.X", &modelTransform.rotate.x, -360, 360);
             ImGui::SliderAngle("Rotate.Y", &modelTransform.rotate.y, -360, 360);
             ImGui::SliderAngle("Rotate.Z", &modelTransform.rotate.z, -360, 360);
