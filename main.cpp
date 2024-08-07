@@ -137,7 +137,7 @@ IDxcBlob* CompileShader(
 ) {
     Log(ConvertString(std::format(L"Begin Compile Shader , Path : {}, Profile : {}\n", filePath, profile)));
 
-    IDxcBlobEncoding* shaderSource = nullptr;
+    Microsoft::WRL::ComPtr<IDxcBlobEncoding> shaderSource = nullptr;
     HRESULT hr = utils->LoadFile(filePath.c_str(), nullptr, &shaderSource);
     assert(SUCCEEDED(hr));
 
@@ -153,7 +153,7 @@ IDxcBlob* CompileShader(
         L"-Od", L"-Zpr"
     };
 
-    IDxcResult* shaderResult = nullptr;
+    Microsoft::WRL::ComPtr<IDxcResult> shaderResult = nullptr;
     hr = compiler->Compile(
         &shaderSourceBuffer,
         arguments,
@@ -163,23 +163,20 @@ IDxcBlob* CompileShader(
     );
     assert(SUCCEEDED(hr));
 
-    IDxcBlobUtf8* shaderError = nullptr;
+    Microsoft::WRL::ComPtr<IDxcBlobUtf8> shaderError = nullptr;
     shaderResult->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&shaderError), nullptr);
     if (shaderError != nullptr && shaderError->GetStringLength() != 0){
         Log(shaderError->GetStringPointer());
         assert(false);
     }
 
-    IDxcBlob* shaderBlob = nullptr;
+    Microsoft::WRL::ComPtr<IDxcBlob> shaderBlob = nullptr;
     hr = shaderResult->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr);
     assert(SUCCEEDED(hr));
 
     Log(ConvertString(std::format(L"Compile Succeeded, Path : {}, Profile : {}\n", filePath, profile)));
 
-    shaderSource->Release();
-    shaderResult->Release();
-
-    return shaderBlob;
+    return shaderBlob.Get();
 }
 
 ID3D12Resource* CreateBufferResource(ID3D12Device* device, size_t sizeInBytes) {
@@ -196,7 +193,7 @@ ID3D12Resource* CreateBufferResource(ID3D12Device* device, size_t sizeInBytes) {
     materialResourceDesc.SampleDesc.Count = 1;
     materialResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
-    ID3D12Resource* materialResource = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12Resource> materialResource = nullptr;
 
     #ifdef _DEBUG
     HRESULT hR =
@@ -206,11 +203,11 @@ ID3D12Resource* CreateBufferResource(ID3D12Device* device, size_t sizeInBytes) {
 
     assert(SUCCEEDED(hR));
 
-    return materialResource;
+    return materialResource.Get();
 }
 
 ID3D12DescriptorHeap* CreateDescriptorHeap(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT descriptorsNum, bool shaderVisible) {
-    ID3D12DescriptorHeap* heap = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> heap = nullptr;
     D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
     heapDesc.Type = type;
     heapDesc.NodeMask = 0;
@@ -220,7 +217,7 @@ ID3D12DescriptorHeap* CreateDescriptorHeap(ID3D12Device* device, D3D12_DESCRIPTO
     HRESULT hr = device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&heap));
     assert(SUCCEEDED(hr));
 
-    return heap;
+    return heap.Get();
 }
 
 
@@ -270,8 +267,8 @@ ID3D12Resource* UploadTextureData(ID3D12Device* device, ID3D12GraphicsCommandLis
     std::vector<D3D12_SUBRESOURCE_DATA> subresources;
     DirectX::PrepareUpload(device, mipImages.GetImages(), mipImages.GetImageCount(), mipImages.GetMetadata(), subresources);
     uint64_t intermediateSize = GetRequiredIntermediateSize(texture, 0, UINT(mipImages.GetImageCount()));
-    ID3D12Resource* intermediateResource = CreateBufferResource(device, intermediateSize);
-    UpdateSubresources(commandList, texture, intermediateResource, 0, 0, UINT(subresources.size()), subresources.data());
+    Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource = CreateBufferResource(device, intermediateSize);
+    UpdateSubresources(commandList, texture, intermediateResource.Get(), 0, 0, UINT(subresources.size()), subresources.data());
 
     D3D12_RESOURCE_BARRIER barrier {};
     barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -282,7 +279,7 @@ ID3D12Resource* UploadTextureData(ID3D12Device* device, ID3D12GraphicsCommandLis
     barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_GENERIC_READ;
 
     commandList->ResourceBarrier(1, &barrier);
-    return intermediateResource;
+    return intermediateResource.Get();
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE GetCPUHandle(ID3D12Device* device, ID3D12DescriptorHeap* heap, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t index) {
@@ -315,7 +312,7 @@ ID3D12Resource* CreateDepthStencilResource(ID3D12Device* device, int32_t width, 
     depthClearValue.DepthStencil.Depth = 1.f;
     depthClearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
-    ID3D12Resource* resource = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12Resource> resource = nullptr;
     HRESULT hr = device->CreateCommittedResource(
         &heapProperties,
         D3D12_HEAP_FLAG_NONE,
@@ -326,7 +323,7 @@ ID3D12Resource* CreateDepthStencilResource(ID3D12Device* device, int32_t width, 
     );
     assert(SUCCEEDED(hr));
 
-    return resource;
+    return resource.Get();
 }
 
 MaterialData LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& fileName) {
