@@ -796,7 +796,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     Microsoft::WRL::ComPtr<ID3D12Resource> materialResource = (CreateBufferResource(device, sizeof(Material)));
     //Microsoft::WRL::ComPtr<ID3D12Resource> transformationResource = nullptr;
     //transformationResource.Attach(CreateBufferResource(device.Get(), sizeof(TransformationMatrix)));
-
+     
     //D3D12_VERTEX_BUFFER_VIEW vertexBufferView {};
     //vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
     //vertexBufferView.SizeInBytes = sizeof(VertexData) * 3 * 2;
