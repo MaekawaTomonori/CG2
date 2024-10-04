@@ -21,13 +21,14 @@
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_dx12.h"
 #include "imgui/imgui_impl_win32.h"
+#include "input/Input.h"
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-#include "MathUtils.h"
-#include "Matrix.h"
-#include "Transform.h"
-#include "Vector2.h"
-#include "Vector4.h"
+#include "math/MathUtils.h"
+#include "math/Matrix.h"
+#include "math/Transform.h"
+#include "math/Vector2.h"
+#include "math/Vector4.h"
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -789,6 +790,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart()
     );
 
+    //Input
+    Input* input = nullptr;
+
+	input = new Input();
+    input->Initialize(wc.hInstance, hwnd);
+
 #pragma region Triangle
     //Triangle
     //Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = nullptr;
@@ -1316,6 +1323,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     }
 
 #pragma endregion
+
+    delete input;
 
     ImGui_ImplDX12_Shutdown();
     ImGui_ImplWin32_Shutdown();
