@@ -34,6 +34,9 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "dxcompiler.lib")
 
+enum class BlendMode{
+	
+};
 
 struct VertexData{
     Vector4 position;
@@ -713,6 +716,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     //BlendState
     D3D12_BLEND_DESC blendDesc {};
     blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+    blendDesc.RenderTarget[0].BlendEnable = true;
+    blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+    blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+    blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+
+    //AlphaBlend
+    blendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+    blendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+    blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
 
     //RasterizerState
     D3D12_RASTERIZER_DESC rasterizerDesc {};
@@ -1059,7 +1071,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region Model
-    ModelData modelData = LoadObjFile("resources", "axis.obj");
+    ModelData modelData = LoadObjFile("resources", "plane.obj");
     Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = (CreateBufferResource(device.Get(), sizeof(VertexData)* modelData.vertices.size()));
 
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView {};
@@ -1182,6 +1194,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             ImGui::SliderAngle("Rotate.X", &modelTransform.rotate.x, -360, 360);
             ImGui::SliderAngle("Rotate.Y", &modelTransform.rotate.y, -360, 360);
             ImGui::SliderAngle("Rotate.Z", &modelTransform.rotate.z, -360, 360);
+            ImGui::DragFloat4("Color", &materialData->color.x, 0.01f);
             ImGui::End();
 
             transformationData->World = MathUtils::Matrix::MakeAffineMatrix(modelTransform.scale, modelTransform.rotate, modelTransform.translate);
