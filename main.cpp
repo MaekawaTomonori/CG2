@@ -35,7 +35,13 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 #pragma comment(lib, "dxcompiler.lib")
 
 enum class BlendMode{
-	
+	ALPHA,
+    ADD,
+    SUB,
+    MUL,
+    SCREEN,
+
+    NUM
 };
 
 struct VertexData{
@@ -714,17 +720,48 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     inputLayoutDesc.NumElements = _countof(inputElementDescs);
 
     //BlendState
+    BlendMode blendMode = BlendMode::MUL;
+
     D3D12_BLEND_DESC blendDesc {};
     blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-    blendDesc.RenderTarget[0].BlendEnable = true;
-    blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
-    blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
-    blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
 
-    //AlphaBlend
-    blendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
-    blendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
-    blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+    switch (blendMode){
+		case BlendMode::ALPHA:
+		    blendDesc.RenderTarget[0].BlendEnable = true;
+		    blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+		    blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+		    blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+
+		    //AlphaBlend
+		    blendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+		    blendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+		    blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+            break;
+        case BlendMode::ADD:
+		    //AddBlend
+		    blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+		    blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+		    blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+            break;
+	    case BlendMode::SUB:
+            //SubBlend
+            blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+            blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_REV_SUBTRACT;
+            blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+			break;
+    	case BlendMode::MUL:
+            //MultiBlend
+            blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_ZERO;
+            blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+            blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_SRC_COLOR;
+            break;
+        case BlendMode::SCREEN:
+            blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_INV_DEST_COLOR;
+            blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+            blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+            break;
+    }
+
 
     //RasterizerState
     D3D12_RASTERIZER_DESC rasterizerDesc {};
