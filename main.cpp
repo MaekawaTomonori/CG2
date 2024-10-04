@@ -35,6 +35,7 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 #pragma comment(lib, "dxcompiler.lib")
 
 enum class BlendMode{
+    NONE,
 	ALPHA,
     ADD,
     SUB,
@@ -720,12 +721,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     inputLayoutDesc.NumElements = _countof(inputElementDescs);
 
     //BlendState
-    BlendMode blendMode = BlendMode::MUL;
+    BlendMode blendMode = BlendMode::NONE;
 
     D3D12_BLEND_DESC blendDesc {};
     blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
     switch (blendMode){
+        case BlendMode::NONE:
+            break;
 		case BlendMode::ALPHA:
 		    blendDesc.RenderTarget[0].BlendEnable = true;
 		    blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
@@ -1108,7 +1111,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 #pragma region Model
-    ModelData modelData = LoadObjFile("resources", "plane.obj");
+    ModelData modelData = LoadObjFile("resources/fence", "fence.obj");
     Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = (CreateBufferResource(device.Get(), sizeof(VertexData)* modelData.vertices.size()));
 
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView {};

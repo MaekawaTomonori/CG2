@@ -25,6 +25,9 @@ PixelShaderOutput main(VertexShaderOutput input) {
     PixelShaderOutput output;
     float4 transformedUV = mul(float32_t4(input.texcoord, 0, 1), gMaterial.uvTransform);
     float32_t4 texColor = gTexture.Sample(gSampler, transformedUV.xy);
+    if(texColor.a == 0.0){
+		discard;
+	}
     if(gMaterial.enableLighting != 0){
         //Lambertain Reflectance
     	//float cos = saturate(dot(normalize(input.normal), -gDirectionalLight.direction));
@@ -37,6 +40,9 @@ PixelShaderOutput main(VertexShaderOutput input) {
         output.color.a = gMaterial.color.a * texColor.a;
     } else{
 		output.color = gMaterial.color * texColor;
+    }
+    if(output.color.a == 0.0){
+        discard;
     }
     return output;
 }
