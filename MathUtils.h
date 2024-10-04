@@ -8,6 +8,23 @@ namespace MathUtils{
     const float F_PI = 3.14159265358979323846264338327950288f;
     const double PI = 3.14159265358979323846264338327950288;
 
+    template<typename Type>
+    Type Lerp(const Type& a, const Type& b, float t) {
+        return a + (b - a) * t;
+    }
+
+    template<typename Type>
+    Type Factorial(Type n) {
+        if (n <= 0)return 1;
+
+        return static_cast<Type>(n * Factorial(n - 1));
+    }
+
+    template <typename Type>
+    Type Permutation(Type n, Type r) {
+        return static_cast<Type>(Factorial(n) / Factorial(n - r));
+    }
+
     namespace Matrix {
         Matrix3x3 MakeIdentity3x3();
 
