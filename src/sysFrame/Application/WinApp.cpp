@@ -1,4 +1,4 @@
-#include "Application.h"
+#include "WinApp.h"
 
 #include <cstdint>
 #include <d3d12sdklayers.h>
@@ -20,7 +20,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-bool Application::Create() {
+bool WinApp::Create() {
 	//Registering Window Class
     wc_.lpfnWndProc = WindowProc;
     wc_.lpszClassName = L"WindowClass";
@@ -64,20 +64,20 @@ bool Application::Create() {
     return true;
 }
 
-void Application::Initialize() {
+void WinApp::Initialize() {
 	CoInitializeEx(0, COINIT_MULTITHREADED);
     Create();
 }
 
-void Application::Update() {
+void WinApp::Update() {
 }
 
-void Application::Finalize() const {
+void WinApp::Finalize() const {
     CloseWindow(hwnd_);
     CoUninitialize();
 }
 
-bool Application::ProcessMessage() {
+bool WinApp::ProcessMessage() {
     MSG msg;
     if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)){
 	    if (msg.message == WM_QUIT){
@@ -92,10 +92,10 @@ bool Application::ProcessMessage() {
     return true;
 }
 
-HWND Application::GetHwnd() const {
+HWND WinApp::GetHwnd() const {
     return hwnd_;
 }
 
-WNDCLASS Application::GetWindowClass() const {
+WNDCLASS WinApp::GetWindowClass() const {
     return wc_;
 }

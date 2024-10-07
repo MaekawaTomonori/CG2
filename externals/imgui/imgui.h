@@ -1501,8 +1501,8 @@ enum ImGuiConfigFlags_
     ImGuiConfigFlags_NoMouseCursorChange    = 1 << 5,   // Instruct backend to not alter mouse cursor shape and visibility. Use if the backend cursor changes are interfering with yours and you don't want to use SetMouseCursor() to change mouse cursor. You may want to honor requests from imgui by reading GetMouseCursor() yourself instead.
 
     // User storage (to allow your backend/engine to communicate to code that may be shared between multiple projects. Those flags are NOT used by core Dear ImGui)
-    ImGuiConfigFlags_IsSRGB                 = 1 << 20,  // Application is SRGB-aware.
-    ImGuiConfigFlags_IsTouchScreen          = 1 << 21,  // Application is using a touch screen instead of a mouse.
+    ImGuiConfigFlags_IsSRGB                 = 1 << 20,  // WinApp is SRGB-aware.
+    ImGuiConfigFlags_IsTouchScreen          = 1 << 21,  // WinApp is using a touch screen instead of a mouse.
 };
 
 // Backend capabilities flags stored in io.BackendFlags. Set by imgui_impl_xxx or custom backend.

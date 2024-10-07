@@ -3,7 +3,7 @@
 #include <cassert>
 #include <wrl/client.h>
 
-void Input::Initialize(const std::shared_ptr<Application>& application) {
+void Input::Initialize(const std::shared_ptr<WinApp>& application) {
     app_ = application;
     HRESULT hr = DirectInput8Create(app_->GetWindowClass().hInstance, DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&directInput, nullptr);
     assert(SUCCEEDED(hr));

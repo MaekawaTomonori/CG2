@@ -45,15 +45,19 @@
     <ClCompile Include="src\sysFrame\input\Input.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="src\sysFrame\Application\Application.cpp">
+    <ClCompile Include="src\sysFrame\Application\WinApp.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="src\sysFrame\Graphics\DirectXCommon.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="src\sysFrame\Utility\Utility.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="resources\Shaders\Object3d.PS.hlsl" />
     <FxCompile Include="resources\Shaders\Object3d.VS.hlsl" />
-    <FxCompile Include="Object3d.PS.hlsl" />
-    <FxCompile Include="Object3d.VS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\sysFrame\math\Vector2.h">
@@ -101,7 +105,13 @@
     <ClInclude Include="src\sysFrame\input\Input.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="src\sysFrame\Application\Application.h">
+    <ClInclude Include="src\sysFrame\Application\WinApp.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="src\sysFrame\Graphics\DirectXCommon.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="src\sysFrame\Utility\Utility.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>

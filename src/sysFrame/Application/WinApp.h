@@ -2,7 +2,7 @@
 #include <inttypes.h>
 #include <windows.h>
 
-class Application{
+class WinApp{
 	HWND hwnd_ = nullptr;
 	WNDCLASS wc_ {};
 public:

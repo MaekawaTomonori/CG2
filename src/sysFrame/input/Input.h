@@ -4,7 +4,7 @@
 #include <memory>
 #include <wrl/client.h>
 
-#include "Application/Application.h"
+#include "Application/WinApp.h"
 
 #pragma comment(lib, "dinput8.lib")
 #pragma comment(lib, "dxguid.lib")
@@ -15,10 +15,10 @@ class Input{
 	BYTE keyState[256] = {};
 	BYTE preKey[256] = {};
 
-	std::shared_ptr<Application> app_ = nullptr;
+	std::shared_ptr<WinApp> app_ = nullptr;
 
 public:
-	void Initialize(const std::shared_ptr<Application>& application);
+	void Initialize(const std::shared_ptr<WinApp>& application);
 	void Update();
 
 	bool PushKey(BYTE key) const;
