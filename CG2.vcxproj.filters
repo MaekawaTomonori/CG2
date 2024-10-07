@@ -45,13 +45,15 @@
     <ClCompile Include="src\sysFrame\input\Input.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="Application.cpp">
+    <ClCompile Include="src\sysFrame\Application\Application.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="resources\Shaders\Object3d.PS.hlsl" />
     <FxCompile Include="resources\Shaders\Object3d.VS.hlsl" />
+    <FxCompile Include="Object3d.PS.hlsl" />
+    <FxCompile Include="Object3d.VS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\sysFrame\math\Vector2.h">
@@ -99,7 +101,7 @@
     <ClInclude Include="src\sysFrame\input\Input.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="Application.h">
+    <ClInclude Include="src\sysFrame\Application\Application.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
@@ -108,5 +110,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\Shaders\Object3d.hlsli" />
+    <None Include="Object3d.hlsli" />
   </ItemGroup>
 </Project>

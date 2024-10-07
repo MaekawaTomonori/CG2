@@ -14,6 +14,11 @@
 #include <algorithm>
 #include <array>
 
+#pragma comment(lib, "d3d12.lib")
+#pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "dxguid.lib")
+#pragma comment(lib, "dxcompiler.lib")
+
 //externals
 #include "DirectXMath.h"
 #include "DirectXTex/d3dx12.h"
@@ -21,19 +26,16 @@
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_dx12.h"
 #include "imgui/imgui_impl_win32.h"
+
+
+#include "Application/Application.h"
 #include "input/Input.h"
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 #include "math/MathUtils.h"
 #include "math/Matrix.h"
 #include "math/Transform.h"
 #include "math/Vector2.h"
 #include "math/Vector4.h"
-
-#pragma comment(lib, "d3d12.lib")
-#pragma comment(lib, "dxgi.lib")
-#pragma comment(lib, "dxguid.lib")
-#pragma comment(lib, "dxcompiler.lib")
 
 
 struct VertexData{
@@ -79,19 +81,6 @@ struct D3DLeakChecker{
         }
 	}
 };
-
-LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-    if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam)){
-        return true;
-    }
-    switch (msg){
-    case WM_DESTROY:
-        PostQuitMessage(0);
-        return 0;
-    }
-
-    return DefWindowProc(hwnd, msg, wParam, lParam);
-}
 
 std::wstring ConvertString(const std::string& str) {
     if (str.empty()){
@@ -429,46 +418,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     std::shared_ptr<D3DLeakChecker> leakChecker;
 
-    //Registering Window Class
-    WNDCLASS wc {};
-
-    wc.lpfnWndProc = WindowProc;
-    wc.lpszClassName = L"WindowClass";
-    wc.hInstance = GetModuleHandle(nullptr);
-    wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
-
-    RegisterClass(&wc);
-
-
-    RECT wrc = {0,0,kClientWidth,kClientHeight};
-
-    AdjustWindowRect(&wrc, WS_OVERLAPPEDWINDOW, false);
-
-    //Create Window 
-    HWND hwnd = CreateWindow(
-        wc.lpszClassName,
-        L"CG2",
-        WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT,
-        CW_USEDEFAULT,
-        wrc.right - wrc.left,
-        wrc.bottom - wrc.top,
-        nullptr,
-        nullptr,
-        wc.hInstance,
-        nullptr
-    );
-
-    #ifdef _DEBUG
-    Microsoft::WRL::ComPtr<ID3D12Debug1> debugController = nullptr;
-    if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))){
-        debugController->EnableDebugLayer();
-        debugController->SetEnableGPUBasedValidation(true);
-    }
-    #endif
-
-
-    ShowWindow(hwnd, SW_SHOW);
+    Application* app = nullptr;
+    app = new Application;
+    app->Initialize(1280, 720);
+    
 
     //=================================
 
@@ -721,10 +674,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
 
     //Compile Shader
-    Microsoft::WRL::ComPtr<IDxcBlob> vertexShaderBlob = CompileShader(L"resources/Shaders/Object3d.VS.hlsl", L"vs_6_0", dxcUtils, dxcCompiler, includeHandler);
+    Microsoft::WRL::ComPtr<IDxcBlob> vertexShaderBlob = CompileShader(L"Object3d.VS.hlsl", L"vs_6_0", dxcUtils, dxcCompiler, includeHandler);
     assert(vertexShaderBlob != nullptr);
 
-    Microsoft::WRL::ComPtr<IDxcBlob> pixelShaderBlob = CompileShader(L"resources/Shaders/Object3d.PS.hlsl", L"ps_6_0", dxcUtils, dxcCompiler, includeHandler);
+    Microsoft::WRL::ComPtr<IDxcBlob> pixelShaderBlob = CompileShader(L"Object3d.PS.hlsl", L"ps_6_0", dxcUtils, dxcCompiler, includeHandler);
     assert(pixelShaderBlob != nullptr);
 
     //DepthStencilState
@@ -1333,6 +1286,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
     delete input;
+    delete app;
 
     ImGui_ImplDX12_Shutdown();
     ImGui_ImplWin32_Shutdown();
