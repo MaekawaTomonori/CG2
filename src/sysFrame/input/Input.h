@@ -10,8 +10,14 @@
 class Input{
 	Microsoft::WRL::ComPtr<IDirectInput8> directInput = nullptr;
 	Microsoft::WRL::ComPtr<IDirectInputDevice8> keyboard = nullptr;
+	BYTE keyState[256] = {};
+	BYTE preKey[256] = {};
 public:
 	void Initialize(HINSTANCE hInstance, HWND hWnd);
 	void Update();
+
+	bool PushKey(BYTE key) const;
+	bool TriggerKey(BYTE key) const;
+	bool ReleaseKey(BYTE key) const;
 };
 

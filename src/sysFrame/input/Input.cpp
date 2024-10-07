@@ -18,7 +18,26 @@ void Input::Initialize(HINSTANCE hInstance, HWND hWnd) {
 }
 
 void Input::Update() {
-    keyboard->Acquire();
-    BYTE keyState[256] = {};
-    keyboard->GetDeviceState(sizeof(keyState), keyState);
+    memcpy(preKey, keyState, sizeof(keyState));
+
+    HRESULT hr;
+
+	hr = keyboard->Acquire();
+
+    assert(SUCCEEDED(hr));
+
+    hr = keyboard->GetDeviceState(sizeof(keyState), keyState);
+    assert(SUCCEEDED(hr));
+}
+
+bool Input::PushKey(BYTE key) const {
+    return keyState[key];
+}
+
+bool Input::TriggerKey(BYTE key) const {
+    return keyState[key] && !preKey[key];
+}
+
+bool Input::ReleaseKey(BYTE key) const {
+    return !keyState[key] && preKey[key];
 }

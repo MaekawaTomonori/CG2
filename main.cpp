@@ -1165,6 +1165,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
             ImGui::ShowDemoWindow();
 #pragma region Update
+            //Input
+            input->Update();
+
             //Triangle
             /*transform.rotate.y += 0.01f;*/
             Matrix4x4 cameraMatrix = MathUtils::Matrix::MakeAffineMatrix(Camera.scale, Camera.rotate, Camera.translate);
@@ -1259,6 +1262,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             commandList->SetPipelineState(graphicsPipelineState.Get());
 
 #pragma region Draw
+            //Input
+            if(input->PushKey(DIK_A)){
+                Log("Hit - A\n");
+            }
+
             //Triangle
             /*commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
             commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);*/
