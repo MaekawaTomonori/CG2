@@ -132,9 +132,9 @@ void Log(const std::wstring& message) {
 Microsoft::WRL::ComPtr<IDxcBlob> CompileShader(
     const std::wstring& filePath,
     const wchar_t* profile,
-    Microsoft::WRL::ComPtr<IDxcUtils> utils,
-    Microsoft::WRL::ComPtr<IDxcCompiler3> compiler,
-    Microsoft::WRL::ComPtr<IDxcIncludeHandler> includeHandler
+    const Microsoft::WRL::ComPtr<IDxcUtils>& utils,
+    const Microsoft::WRL::ComPtr<IDxcCompiler3>& compiler,
+    const Microsoft::WRL::ComPtr<IDxcIncludeHandler>& includeHandler
 ) {
     Log(ConvertString(std::format(L"Begin Compile Shader , Path : {}, Profile : {}\n", filePath, profile)));
 
@@ -721,10 +721,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
 
     //Compile Shader
-    Microsoft::WRL::ComPtr<IDxcBlob> vertexShaderBlob = CompileShader(L"Object3d.VS.hlsl", L"vs_6_0", dxcUtils, dxcCompiler, includeHandler);
+    Microsoft::WRL::ComPtr<IDxcBlob> vertexShaderBlob = CompileShader(L"resources/Shaders/Object3d.VS.hlsl", L"vs_6_0", dxcUtils, dxcCompiler, includeHandler);
     assert(vertexShaderBlob != nullptr);
 
-    Microsoft::WRL::ComPtr<IDxcBlob> pixelShaderBlob = CompileShader(L"Object3d.PS.hlsl", L"ps_6_0", dxcUtils, dxcCompiler, includeHandler);
+    Microsoft::WRL::ComPtr<IDxcBlob> pixelShaderBlob = CompileShader(L"resources/Shaders/Object3d.PS.hlsl", L"ps_6_0", dxcUtils, dxcCompiler, includeHandler);
     assert(pixelShaderBlob != nullptr);
 
     //DepthStencilState
