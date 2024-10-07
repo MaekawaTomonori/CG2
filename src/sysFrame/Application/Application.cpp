@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include <d3d12sdklayers.h>
-#include <windows.h>
 #include <wrl/client.h>
 
 #include "imgui/imgui.h"
@@ -21,25 +20,23 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-void Application::Initialize(int32_t width, int32_t height) {
-    //Registering Window Class
-    WNDCLASS wc {};
+bool Application::Create() {
+	//Registering Window Class
+    wc_.lpfnWndProc = WindowProc;
+    wc_.lpszClassName = L"WindowClass";
+    wc_.hInstance = GetModuleHandle(nullptr);
+    wc_.hCursor = LoadCursor(nullptr, IDC_ARROW);
 
-    wc.lpfnWndProc = WindowProc;
-    wc.lpszClassName = L"WindowClass";
-    wc.hInstance = GetModuleHandle(nullptr);
-    wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
-
-    RegisterClass(&wc);
+    RegisterClass(&wc_);
 
 
-    RECT wrc = {0,0,width,height};
+    RECT wrc = {0,0,kClientWidth,kClientHeight};
 
     AdjustWindowRect(&wrc, WS_OVERLAPPEDWINDOW, false);
 
     //Create Window 
-    HWND hwnd = CreateWindow(
-        wc.lpszClassName,
+    hwnd_ = CreateWindow(
+        wc_.lpszClassName,
         L"CG2",
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,
@@ -48,7 +45,7 @@ void Application::Initialize(int32_t width, int32_t height) {
         wrc.bottom - wrc.top,
         nullptr,
         nullptr,
-        wc.hInstance,
+        wc_.hInstance,
         nullptr
     );
 
@@ -61,10 +58,44 @@ void Application::Initialize(int32_t width, int32_t height) {
     #endif
 
 
-    ShowWindow(hwnd, SW_SHOW);
+    ShowWindow(hwnd_, SW_SHOW);
 
-    UpdateWindow(hwnd);
+    UpdateWindow(hwnd_);
+    return true;
+}
+
+void Application::Initialize() {
+	CoInitializeEx(0, COINIT_MULTITHREADED);
+    Create();
 }
 
 void Application::Update() {
+}
+
+void Application::Finalize() const {
+    CloseWindow(hwnd_);
+    CoUninitialize();
+}
+
+bool Application::ProcessMessage() {
+    MSG msg;
+    if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)){
+	    if (msg.message == WM_QUIT){
+		    return false;
+        }
+
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+
+
+    return true;
+}
+
+HWND Application::GetHwnd() const {
+    return hwnd_;
+}
+
+WNDCLASS Application::GetWindowClass() const {
+    return wc_;
 }

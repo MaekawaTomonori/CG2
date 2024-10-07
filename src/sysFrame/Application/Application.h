@@ -1,10 +1,24 @@
 ﻿#pragma once
 #include <inttypes.h>
+#include <windows.h>
 
 class Application{
-    //bool CreateWindow(int32_t width, int32_t height);
+	HWND hwnd_ = nullptr;
+	WNDCLASS wc_ {};
 public:
-	void Initialize(int32_t width, int32_t height);
+	static const int32_t kClientWidth = 1280;
+	static const int32_t kClientHeight = 720;
+private:
+	bool Create();
+public:
+	void Initialize();
 	void Update();
+	void Finalize() const;
+
+	bool ProcessMessage();
+
+public: //Getter
+	HWND GetHwnd() const;
+    WNDCLASS GetWindowClass() const;
 };
 

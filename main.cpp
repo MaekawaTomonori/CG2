@@ -403,10 +403,6 @@ ModelData LoadObjFile(const std::string& directoryPath, const std::string& fileN
     return modelData;
 }
 
-//Rect
-const int32_t kClientWidth = 1280;
-const int32_t kClientHeight = 720;
-
 Transform Camera {
     {1,1,1},
     {0,0,0},
@@ -414,14 +410,15 @@ Transform Camera {
 };
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
-    CoInitializeEx(0, COINIT_MULTITHREADED);
+    
 
     std::shared_ptr<D3DLeakChecker> leakChecker;
 
-    Application* app = nullptr;
-    app = new Application;
-    app->Initialize(1280, 720);
-    
+    std::shared_ptr<Application> app = nullptr;
+    app = std::make_shared<Application>();
+    app->Initialize();
+
+    HWND hwnd = app->GetHwnd();
 
     //=================================
 
@@ -511,8 +508,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     //SwapChain
     Microsoft::WRL::ComPtr<IDXGISwapChain4> swapChain = nullptr;
     DXGI_SWAP_CHAIN_DESC1 swapChainDesc {};
-    swapChainDesc.Width = kClientWidth;
-    swapChainDesc.Height = kClientHeight;
+    swapChainDesc.Width = Application::kClientWidth;
+    swapChainDesc.Height = Application::kClientHeight;
     swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     swapChainDesc.SampleDesc.Count = 1;
     swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -674,10 +671,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
 
     //Compile Shader
-    Microsoft::WRL::ComPtr<IDxcBlob> vertexShaderBlob = CompileShader(L"Object3d.VS.hlsl", L"vs_6_0", dxcUtils, dxcCompiler, includeHandler);
+    Microsoft::WRL::ComPtr<IDxcBlob> vertexShaderBlob = CompileShader(L"resources/Shaders/Object3d.VS.hlsl", L"vs_6_0", dxcUtils, dxcCompiler, includeHandler);
     assert(vertexShaderBlob != nullptr);
 
-    Microsoft::WRL::ComPtr<IDxcBlob> pixelShaderBlob = CompileShader(L"Object3d.PS.hlsl", L"ps_6_0", dxcUtils, dxcCompiler, includeHandler);
+    Microsoft::WRL::ComPtr<IDxcBlob> pixelShaderBlob = CompileShader(L"resources/Shaders/Object3d.PS.hlsl", L"ps_6_0", dxcUtils, dxcCompiler, includeHandler);
     assert(pixelShaderBlob != nullptr);
 
     //DepthStencilState
@@ -713,8 +710,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     //Viewport Scissor
     D3D12_VIEWPORT viewport {};
-    viewport.Width = kClientWidth;
-    viewport.Height = kClientHeight;
+    viewport.Width = Application::kClientWidth;
+    viewport.Height = Application::kClientHeight;
     viewport.TopLeftX = 0;
     viewport.TopLeftY = 0;
     viewport.MinDepth = 0;
@@ -722,9 +719,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     D3D12_RECT scissorRect {};
     scissorRect.left = 0;
-    scissorRect.right = kClientWidth;
+    scissorRect.right = Application::kClientWidth;
     scissorRect.top = 0;
-    scissorRect.bottom = kClientHeight;
+    scissorRect.bottom = Application::kClientHeight;
 
     //shader resource view
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap = CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 128, true);
@@ -747,7 +744,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     Input* input = nullptr;
 
 	input = new Input();
-    input->Initialize(wc.hInstance, hwnd);
+    input->Initialize(app);
 
 #pragma region Triangle
     //Triangle
@@ -1080,7 +1077,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     bool useMonsterBall = true;
 
     //DepthStencilTexture
-    Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource = (CreateDepthStencilResource(device.Get(), kClientWidth, kClientHeight));
+    Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource = (CreateDepthStencilResource(device.Get(), Application::kClientWidth, Application::kClientHeight));
 
     //DepthStencilView
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap = (CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false));
@@ -1103,185 +1100,181 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     directionalLight->intensity = 1;
 
 #pragma region MainLoop
-    MSG msg {};
-    while(msg.message != WM_QUIT){
-        if(PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)){
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        }else{
-            //do somethings...//
+    
+    while(app->ProcessMessage()){
+        //do somethings...//
 
-            //BeginFrame
-            ImGui_ImplDX12_NewFrame();
-            ImGui_ImplWin32_NewFrame();
-            ImGui::NewFrame();
+        //BeginFrame
+        ImGui_ImplDX12_NewFrame();
+        ImGui_ImplWin32_NewFrame();
+        ImGui::NewFrame();
 
-            ImGui::ShowDemoWindow();
+        ImGui::ShowDemoWindow();
 #pragma region Update
-            //Input
-            input->Update();
+        //Input
+        input->Update();
 
-            //Triangle
-            /*transform.rotate.y += 0.01f;*/
-            Matrix4x4 cameraMatrix = MathUtils::Matrix::MakeAffineMatrix(Camera.scale, Camera.rotate, Camera.translate);
-            Matrix4x4 viewMatrix = cameraMatrix.Inverse();
-            Matrix4x4 projectionMatrix = MathUtils::Matrix::MakePerspectiveFovMatrix(0.45f, float(kClientWidth) / float(kClientHeight), 0.1f, 100);
-            /*Matrix4x4 wvp = MathUtils::Matrix::MakeAffineMatrix(transform.scale, transform.rotate, transform.translate) * viewMatrix * projectionMatrix;
-            transformationData->WVP = wvp;*/
+        //Triangle
+        /*transform.rotate.y += 0.01f;*/
+        Matrix4x4 cameraMatrix = MathUtils::Matrix::MakeAffineMatrix(Camera.scale, Camera.rotate, Camera.translate);
+        Matrix4x4 viewMatrix = cameraMatrix.Inverse();
+        Matrix4x4 projectionMatrix = MathUtils::Matrix::MakePerspectiveFovMatrix(0.45f, static_cast<float>(Application::kClientWidth) / static_cast<float>(Application::kClientHeight), 0.1f, 100);
+        /*Matrix4x4 wvp = MathUtils::Matrix::MakeAffineMatrix(transform.scale, transform.rotate, transform.translate) * viewMatrix * projectionMatrix;
+        transformationData->WVP = wvp;*/
 
-            //Sphere
-            //transformationDataSphere->World = MathUtils::Matrix::MakeAffineMatrix(transformSphere.scale, transformSphere.rotate, transformSphere.translate);
-            //Matrix4x4 wvp = transformationDataSphere->World * (viewMatrix * projectionMatrix);
-            //transformationDataSphere->WVP = wvp;
+        //Sphere
+        //transformationDataSphere->World = MathUtils::Matrix::MakeAffineMatrix(transformSphere.scale, transformSphere.rotate, transformSphere.translate);
+        //Matrix4x4 wvp = transformationDataSphere->World * (viewMatrix * projectionMatrix);
+        //transformationDataSphere->WVP = wvp;
 
-            //ImGui::Begin("Sphere");
-            //ImGui::DragFloat3("Rotate", &transformSphere.rotate.x, 0.1f);
-            //ImGui::End();
-
-
-            //Model
-            ImGui::Begin("Model");
-            ImGui::DragFloat3("Transform", &modelTransform.translate.x, 0.01f);
-            ImGui::SliderAngle("Rotate.X", &modelTransform.rotate.x, -360, 360);
-            ImGui::SliderAngle("Rotate.Y", &modelTransform.rotate.y, -360, 360);
-            ImGui::SliderAngle("Rotate.Z", &modelTransform.rotate.z, -360, 360);
-            ImGui::End();
-
-            transformationData->World = MathUtils::Matrix::MakeAffineMatrix(modelTransform.scale, modelTransform.rotate, modelTransform.translate);
-            transformationData->WVP = transformationData->World * viewMatrix * projectionMatrix;
-
-            //Sprite
-            ImGui::Begin("Sprite Transform");
-            ImGui::DragFloat2("Scale", &transformSprite.scale.x, 0.1f);
-            ImGui::DragFloat2("Translate", &transformSprite.translate.x, 1);
-            ImGui::DragFloat2("uvTranslate", &uvTransformSprite.translate.x, 0.1f);
-            ImGui::DragFloat2("uvScale", &uvTransformSprite.scale.x, 0.01f);
-            ImGui::SliderAngle("uvRotate", &uvTransformSprite.rotate.z, -360, 360);
-            ImGui::End();
-            Matrix4x4 viewMatrixSprite = MathUtils::Matrix::MakeIdentity();
-            Matrix4x4 projectionMatrixSprite = MathUtils::Matrix::MakeOrthogonalMatrix(0, float(kClientWidth), 0, float(kClientHeight), 0, 100);
-            transformationMatrixSprite->World = MathUtils::Matrix::MakeAffineMatrix(transformSprite.scale, transformSprite.rotate, transformSprite.translate);
-            Matrix4x4 worldViewProjectionMatrixSprite = transformationMatrixSprite->World * viewMatrixSprite * projectionMatrixSprite;
-            transformationMatrixSprite->WVP = worldViewProjectionMatrixSprite;
-
-            Matrix4x4 uvTransformMatrix = MathUtils::Matrix::MakeScaleMatrix(uvTransformSprite.scale);
-            uvTransformMatrix = uvTransformMatrix * MathUtils::Matrix::MakeRotateZ(uvTransformSprite.rotate.z);
-            uvTransformMatrix = uvTransformMatrix * MathUtils::Matrix::MakeTranslateMatrix(uvTransformSprite.translate);
-            materialDataSprite->uvTransform = uvTransformMatrix;
+        //ImGui::Begin("Sphere");
+        //ImGui::DragFloat3("Rotate", &transformSphere.rotate.x, 0.1f);
+        //ImGui::End();
 
 
-            // texture
-            ImGui::Begin("Texture");
-            ImGui::Checkbox("Use MonsterBall", &useMonsterBall);
-            ImGui::End();
+        //Model
+        ImGui::Begin("Model");
+        ImGui::DragFloat3("Transform", &modelTransform.translate.x, 0.01f);
+        ImGui::SliderAngle("Rotate.X", &modelTransform.rotate.x, -360, 360);
+        ImGui::SliderAngle("Rotate.Y", &modelTransform.rotate.y, -360, 360);
+        ImGui::SliderAngle("Rotate.Z", &modelTransform.rotate.z, -360, 360);
+        ImGui::End();
 
-            ImGui::Begin("Light");
-            ImGui::DragFloat3("Direction", &directionalLight->direction.x, 0.01f);
-            ImGui::End();
+        transformationData->World = MathUtils::Matrix::MakeAffineMatrix(modelTransform.scale, modelTransform.rotate, modelTransform.translate);
+        transformationData->WVP = transformationData->World * viewMatrix * projectionMatrix;
 
-            directionalLight->direction.normalize();
+        //Sprite
+        ImGui::Begin("Sprite Transform");
+        ImGui::DragFloat2("Scale", &transformSprite.scale.x, 0.1f);
+        ImGui::DragFloat2("Translate", &transformSprite.translate.x, 1);
+        ImGui::DragFloat2("uvTranslate", &uvTransformSprite.translate.x, 0.1f);
+        ImGui::DragFloat2("uvScale", &uvTransformSprite.scale.x, 0.01f);
+        ImGui::SliderAngle("uvRotate", &uvTransformSprite.rotate.z, -360, 360);
+        ImGui::End();
+        Matrix4x4 viewMatrixSprite = MathUtils::Matrix::MakeIdentity();
+        Matrix4x4 projectionMatrixSprite = MathUtils::Matrix::MakeOrthogonalMatrix(0, static_cast<float>(Application::kClientWidth), 0, static_cast<float>(Application::kClientHeight), 0, 100);
+        transformationMatrixSprite->World = MathUtils::Matrix::MakeAffineMatrix(transformSprite.scale, transformSprite.rotate, transformSprite.translate);
+        Matrix4x4 worldViewProjectionMatrixSprite = transformationMatrixSprite->World * viewMatrixSprite * projectionMatrixSprite;
+        transformationMatrixSprite->WVP = worldViewProjectionMatrixSprite;
+
+        Matrix4x4 uvTransformMatrix = MathUtils::Matrix::MakeScaleMatrix(uvTransformSprite.scale);
+        uvTransformMatrix = uvTransformMatrix * MathUtils::Matrix::MakeRotateZ(uvTransformSprite.rotate.z);
+        uvTransformMatrix = uvTransformMatrix * MathUtils::Matrix::MakeTranslateMatrix(uvTransformSprite.translate);
+        materialDataSprite->uvTransform = uvTransformMatrix;
+
+
+        // texture
+        ImGui::Begin("Texture");
+        ImGui::Checkbox("Use MonsterBall", &useMonsterBall);
+        ImGui::End();
+
+        ImGui::Begin("Light");
+        ImGui::DragFloat3("Direction", &directionalLight->direction.x, 0.01f);
+        ImGui::End();
+
+        directionalLight->direction.normalize();
 
 #pragma endregion
 
-            ImGui::Render();
+        ImGui::Render();
 
-            UINT bbi = swapChain->GetCurrentBackBufferIndex();
+        UINT bbi = swapChain->GetCurrentBackBufferIndex();
 
-            D3D12_RESOURCE_BARRIER barrier {};
-            barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-            barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-            barrier.Transition.pResource = swapChainResources[bbi].Get();
-            barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-            barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+        D3D12_RESOURCE_BARRIER barrier {};
+        barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+        barrier.Transition.pResource = swapChainResources[bbi].Get();
+        barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+        barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 
-            commandList->ResourceBarrier(1, &barrier);
+        commandList->ResourceBarrier(1, &barrier);
 
-            D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-            commandList->OMSetRenderTargets(1, &rtvHandles[bbi], false, &dsvHandle);
+        D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+        commandList->OMSetRenderTargets(1, &rtvHandles[bbi], false, &dsvHandle);
 
-            float color[4] = {0.1f, 0.25f, 0.5f, 1};
-            commandList->ClearRenderTargetView(rtvHandles[bbi], color, 0, nullptr);
-            commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1, 0, 0, nullptr);
+        float color[4] = {0.1f, 0.25f, 0.5f, 1};
+        commandList->ClearRenderTargetView(rtvHandles[bbi], color, 0, nullptr);
+        commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1, 0, 0, nullptr);
 
-            Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeaps[] = {srvDescriptorHeap};
-            commandList->SetDescriptorHeaps(1, descriptorHeaps->GetAddressOf());
+        Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeaps[] = {srvDescriptorHeap};
+        commandList->SetDescriptorHeaps(1, descriptorHeaps->GetAddressOf());
 
 
-            commandList->RSSetViewports(1, &viewport);
-            commandList->RSSetScissorRects(1, &scissorRect);
+        commandList->RSSetViewports(1, &viewport);
+        commandList->RSSetScissorRects(1, &scissorRect);
 
-            commandList->SetGraphicsRootSignature(rootSignature.Get());
+        commandList->SetGraphicsRootSignature(rootSignature.Get());
 
-            commandList->SetPipelineState(graphicsPipelineState.Get());
+        commandList->SetPipelineState(graphicsPipelineState.Get());
 
 #pragma region Draw
-            //Input
-            if(input->PushKey(DIK_A)){
-                Log("Hit - A\n");
-            }
+        //Input
+        if(input->PushKey(DIK_A)){
+            Log("Hit - A\n");
+        }
 
-            //Triangle
-            /*commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
-            commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);*/
-            commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
-            //commandList->SetGraphicsRootConstantBufferView(1, transformationResource->GetGPUVirtualAddress());
-            commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU2);
-            //commandList->DrawInstanced(3 * 2, 1, 0, 0 );
+        //Triangle
+        /*commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+        commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);*/
+        commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
+        //commandList->SetGraphicsRootConstantBufferView(1, transformationResource->GetGPUVirtualAddress());
+        commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU2);
+        //commandList->DrawInstanced(3 * 2, 1, 0, 0 );
 
-            //Sphere
-            //commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSphere);
-            //commandList->SetGraphicsRootConstantBufferView(0, materialResourceSphere->GetGPUVirtualAddress());
-            commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-            //commandList->SetGraphicsRootConstantBufferView(1, transformationResourceSphere->GetGPUVirtualAddress());
-            //commandList->SetGraphicsRootDescriptorTable(2, useMonsterBall ? textureSrvHandleGPU2 : textureSrvHandleGPU);
-            commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
-            /*commandList->DrawInstanced(kSubdivision * kSubdivision * 6, 1, 0, 0);*/
+        //Sphere
+        //commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSphere);
+        //commandList->SetGraphicsRootConstantBufferView(0, materialResourceSphere->GetGPUVirtualAddress());
+        commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        //commandList->SetGraphicsRootConstantBufferView(1, transformationResourceSphere->GetGPUVirtualAddress());
+        //commandList->SetGraphicsRootDescriptorTable(2, useMonsterBall ? textureSrvHandleGPU2 : textureSrvHandleGPU);
+        commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
+        /*commandList->DrawInstanced(kSubdivision * kSubdivision * 6, 1, 0, 0);*/
 
-            //Model
-            commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
-            commandList->SetGraphicsRootConstantBufferView(1, transformationResource->GetGPUVirtualAddress());
-            commandList->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);
+        //Model
+        commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+        commandList->SetGraphicsRootConstantBufferView(1, transformationResource->GetGPUVirtualAddress());
+        commandList->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);
 
-            //Sprite
-            /*commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
-            commandList->IASetIndexBuffer(&indexBufferViewSprite);
-            commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
-            commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
-            commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
-        	commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);*/
+        //Sprite
+        /*commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
+        commandList->IASetIndexBuffer(&indexBufferViewSprite);
+        commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
+        commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
+        commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
+        commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);*/
 
 #pragma endregion
 
-            ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
+        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
 
-            barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-            barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+        barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+        barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 
-            commandList->ResourceBarrier(1, &barrier);
+        commandList->ResourceBarrier(1, &barrier);
 
-            hr = commandList->Close();
-            assert(SUCCEEDED(hr));
+        hr = commandList->Close();
+        assert(SUCCEEDED(hr));
 
-            Microsoft::WRL::ComPtr<ID3D12CommandList> commandLists[] = {commandList.Get()};
-            commandQueue->ExecuteCommandLists(1, commandLists->GetAddressOf());
+        Microsoft::WRL::ComPtr<ID3D12CommandList> commandLists[] = {commandList.Get()};
+        commandQueue->ExecuteCommandLists(1, commandLists->GetAddressOf());
 
-            swapChain->Present(1, 0);
+        swapChain->Present(1, 0);
 
-            ++fenceValue;
-            commandQueue->Signal(fence.Get(), fenceValue);
+        ++fenceValue;
+        commandQueue->Signal(fence.Get(), fenceValue);
 
-            if (fence->GetCompletedValue() < fenceValue){
-                fence->SetEventOnCompletion(fenceValue, fenceEvent);
-                WaitForSingleObject(fenceEvent, INFINITE);
-            }
-
-            hr = commandAllocator.Get()->Reset();
-            assert(SUCCEEDED(hr));
-
-            hr = commandList.Get()->Reset(commandAllocator.Get(), nullptr);
-            assert(SUCCEEDED(hr));
+        if (fence->GetCompletedValue() < fenceValue){
+            fence->SetEventOnCompletion(fenceValue, fenceEvent);
+            WaitForSingleObject(fenceEvent, INFINITE);
         }
+
+        hr = commandAllocator.Get()->Reset();
+        assert(SUCCEEDED(hr));
+
+        hr = commandList.Get()->Reset(commandAllocator.Get(), nullptr);
+        assert(SUCCEEDED(hr));
     }
+    
 
 #pragma endregion
 
@@ -1293,8 +1286,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     ImGui::DestroyContext();
 
     CloseHandle(fenceEvent);
-    CloseWindow(hwnd);
-    CoUninitialize();
+
 
     return 0;
 }

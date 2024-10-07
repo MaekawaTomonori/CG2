@@ -3,8 +3,9 @@
 #include <cassert>
 #include <wrl/client.h>
 
-void Input::Initialize(HINSTANCE hInstance, HWND hWnd) {
-    HRESULT hr = DirectInput8Create(hInstance, DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&directInput, nullptr);
+void Input::Initialize(const std::shared_ptr<Application>& application) {
+    app_ = application;
+    HRESULT hr = DirectInput8Create(app_->GetWindowClass().hInstance, DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&directInput, nullptr);
     assert(SUCCEEDED(hr));
 
     hr = directInput->CreateDevice(GUID_SysKeyboard, &keyboard, nullptr);
@@ -13,7 +14,7 @@ void Input::Initialize(HINSTANCE hInstance, HWND hWnd) {
     hr = keyboard->SetDataFormat(&c_dfDIKeyboard);
     assert(SUCCEEDED(hr));
 
-    hr = keyboard->SetCooperativeLevel(hWnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE);
+    hr = keyboard->SetCooperativeLevel(app_->GetHwnd(), DISCL_FOREGROUND | DISCL_NONEXCLUSIVE);
     assert(SUCCEEDED(hr));
 }
 
